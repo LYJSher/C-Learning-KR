@@ -1146,7 +1146,7 @@ main(){
 }
 ~~~
 
-####1-22把较长的输入行“折”成短一些的两行或多行，折行的位置在输入行的第n列之前的最后一个非空格之后。要保证程序能够智能地处理输入行很长以及在指定的列前没有空格或制表符时的情况
+####1-22*把较长的输入行“折”成短一些的两行或多行，折行的位置在输入行的第n列之前的最后一个非空格之后。要保证程序能够智能地处理输入行很长以及在指定的列前没有空格或制表符时的情况
 
 ~~~c
 // 自己写的版本
@@ -1165,7 +1165,7 @@ main(){
     i = 0;
     while((c = getchar()) != EOF){
         pos++;
-        if(c == '\n'){
+        if(c == '\n'){ // 遇到换行 如果缓存中还有值先输出再换行
             for(j=0; i>0; j++, i--){
                 putchar(temp[j]);
                 temp[j] = "";
@@ -1203,7 +1203,7 @@ main(){
                 if(c == '\t')
                     pos = TABING;
             }
-            else{
+            else{ // 为字符时先判断缓存中是否有值 有值需要先输出 并更改pos位置
                 for(j=0; i>0; j++, i--){
                     putchar(temp[j]);
                     temp[j] = "";
@@ -1254,6 +1254,7 @@ main(){
 }
 
 // print line until pos column
+// 打印输出位置零到位置pos-1之间的字符
 void printl(int pos){
     int i;
     for(i=0; i<pos; ++i)
@@ -1276,6 +1277,7 @@ int exptab(int pos){
 }
 
 // find blank's position
+// 从输入行的pos开始倒退寻找第一个空格 如果找到一个空格符就返回紧跟在该空格后面的那个位置的下标，如果没有找到空格，返回MAXCOL
 int findblnk(int pos){
     while(pos > 0 && line[pos] != ' ')
         --pos;
@@ -1286,6 +1288,7 @@ int findblnk(int pos){
 }
 
 // rearrange line with new position
+// 调整输入行，把从位置pos开始的字符复制到下一个输出行的开始，然后再返回变量pos的新值
 int newpos(int pos){
     int i, j;
 
@@ -1299,6 +1302,165 @@ int newpos(int pos){
         }
         return i; // new position in line
     }
+}
+~~~
+
+#### 1-23删除C语言程序中所有的注释语句，要正确处理带引号的字符串与字符常量，在C语言中不允许嵌套
+
+状态转移图画出来后其实可以直接用一个变量用不同数值保存状态，用布尔变量太麻烦了，之后有时间可以修改一下
+
+**注意字符串中``"\"sdf"``这种``"``被转义的情况**
+
+~~~c
+// 自己写的版本
+# include <stdio.h>
+// 删除C语言程序中所有的注释语句，要正确处理带引号的字符串与字符常量，在C语言中不允许嵌套
+main(){
+    int isStr, maybCom, bCom1, bCom2, mayeCom, eCom, isCom, isNor;
+    char c;
+
+    isNor = 1; // 正常状态
+    isStr = 0; // 不是字符串
+    maybCom = 0; // 遇到/可能开始注释
+    bCom1 = 0; // 遇到//开始注释
+    bCom2 = 0; // 遇到/*开始注释
+    mayeCom = 0; // 遇到/可能结束注释
+    eCom = 0; // 遇到*/结束注释
+    isCom = 0; // 不是注释
+    while((c = getchar()) != EOF){
+        if(isNor){
+            if(c == '\'' || c == '\"'){
+                isStr = 1;
+                isNor = 0;
+                putchar(c);
+            }
+            else if(c == '/'){
+                maybCom = 1;
+                isNor = 0;
+            }
+            else{
+                putchar(c);
+            }
+        }
+        else if(maybCom){
+            if(c == '/'){
+                bCom1 = 1;
+                isCom = 1;
+                maybCom = 0;
+            }
+            else if(c == '*'){
+                bCom2 = 1;
+                isCom = 1;
+                maybCom = 0;
+            }
+            else{
+                isNor = 1;
+                maybCom = 0;
+                putchar('/');
+                putchar(c);
+            }
+        }
+        else if(isCom){
+            if(bCom1 && c == '\n'){
+                isCom = 0;
+                isNor = 1;
+                bCom1 = 0;
+            }
+            else if(bCom2){
+                if(c == '*'){
+                    mayeCom = 1;
+                }
+                if(mayeCom && c == '/'){
+                    isCom = 0;
+                    isNor = 1;
+                    mayeCom = 0;
+                    bCom2 = 0;
+                }
+                else if(mayeCom && c != '/' && c != '*'){ // 这里注意不能是* 因为当前为第一个*时满足在mayeCom且不会/会出错
+                    mayeCom = 0;
+                }
+            }
+        }
+        else if(isStr){
+            if(c == '\\'){ // 注意字符串中的转义情况！！！
+                c = getchar();
+                putchar(c);
+            }
+            else if(c != '\'' && c != '\"'){
+                putchar(c);
+            }
+            else{
+                isStr = 0;
+                isNor = 1;
+                putchar(c);
+            }
+        }
+    }
+}
+~~~
+
+教材上未考虑``//``的注释情况
+
+~~~c
+// 教材
+# include <stdio.h>
+// 删除C语言程序中所有的注释语句，要正确处理带引号的字符串与字符常量，在C语言中不允许嵌套
+// remove all comments from a valid C program
+void rcomment(int c);
+void in_comment(void);
+void echo_quote(int c);
+
+main(){
+    int c, d;
+
+    while((c = getchar()) != EOF)
+        rcomment(c);
+    return 0;
+}
+
+// rcomment: read each character, remove the comments
+void rcomment(int c){
+    int d;
+    if(c == '/')
+        if((d = getchar()) == '*')
+        in_comment(); // beginning the comments
+    else if(d == '/'){ // another slash
+        putchar(c);
+        rcomment(d);
+    }
+    else{ // not a comment
+        putchar(c);
+        putchar(d);
+    }
+    else if(c == '\'' || c == '\"')
+        echo_quote(c); // quote begin
+    else
+        putchar(c); // not a comment
+}
+
+// in_commeent: inside of a valid comment
+void in_comment(void){
+    int c, d;
+    c = getchar(); // prev character
+    d = getchar(); // curr character
+    while(c != '*' || d != '/'){ // search for end
+        c = d;
+        d = getchar();
+    }
+}
+
+// echo_quote: echo characters within quotes
+void echo_quote(int c){
+    int d;
+
+    putchar(c);
+    while((d = getchar()) != c){ // search for end
+        putchar(d);
+        if(d == '\\'){
+            putchar(getchar()); //ignore escape seq
+        }
+    }
+    putchar(d);
 }
 ~~~
 
