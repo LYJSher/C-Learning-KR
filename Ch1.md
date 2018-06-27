@@ -1464,3 +1464,219 @@ void echo_quote(int c){
 }
 ~~~
 
+#### 1-24*查找C语言程序中的基本语法错误，如括号不匹配。要正确处理引导（包括单引号、双引号）、转义字符序列与注释
+
+~~~c
+// 自己写的版本
+# include <stdio.h>
+// 查找C语言程序中的基本语法错误，如括号不匹配。要正确处理引导（包括单引号、双引号）、转义字符序列与注释
+# define NORMAL 0
+# define MAYBCOM 1
+# define INCOM1 2
+# define INCOM2 3
+# define UNBALAN 4
+# define MAYECOM 5
+# define INSTR1 6
+# define INSTR2 7
+
+int brace, brack, paren; // { [ (
+
+main(){
+    char c, d;
+    int state;
+
+    state = NORMAL;
+    while((c = getchar()) != EOF){
+        if(state == MAYBCOM){
+           // printf("MAYBCOM ");
+            if(c == '/'){
+                state = INCOM1;
+                c = getchar();
+            }
+            else if(c == '*'){
+                state = INCOM2;
+                c = getchar();
+            }
+            else
+                state = NORMAL;
+        }
+        if(state == INCOM1){
+           // printf("INCOM1 ");
+            if(c == '\n'){
+                state = NORMAL;
+                c = getchar();
+            }
+        }
+        if(state == INCOM2){
+           // printf("INCOM2 ");
+            if(c == '*'){
+                state = MAYECOM;
+                c = getchar();
+            }
+        }
+        if(state == MAYECOM){
+            //printf("MAYECOM ");
+            if(c == '/'){
+                state = NORMAL;
+                c = getchar(); // 否则会重复判断状态为MAYBCOM状态
+            }
+            else
+                state = INCOM2;
+        }
+        if(state == INSTR1){
+            if(c == '\\') // 处理转义
+                getchar();
+            else if(c == '\'' ){
+                state = NORMAL;
+                c = getchar();
+            }
+        }
+        if(state == INSTR2){
+            if(c == '\\') // 处理转义
+                getchar();
+            else if(c == '\"' ){
+                state = NORMAL;
+                c = getchar();
+            }
+        }
+        if(state == NORMAL){
+            if(c == '/')
+                state = MAYBCOM;
+            else if(c == '\'')
+                state = INSTR1;
+            else if(c == '\"')
+                state = INSTR2;
+            else if(c == '{')
+                brace++;
+            else if(c == '}')
+                brace--;
+            else if(c == '[')
+                brack++;
+            else if(c == ']')
+                brack--;
+            else if(c == '(')
+                paren++;
+            else if(c == ')')
+                paren--;
+            if(brace < 0 || brack < 0 || paren < 0){
+                state = UNBALAN;
+                brace = brack = paren = 0;
+            }
+        }
+    }
+    if(state == INCOM2)
+        printf("unbalance */\n");
+    else if(state == INSTR1 || state == INSTR2)
+        printf("unbalance \' or \"\n");
+    if(state == UNBALAN || brace > 0 || brack > 0 || paren > 0)
+        printf("unbalance brace\n");
+}
+~~~
+
+*注意*
+
+``if``和``else if``的区别 容易出错
+
+~~~c
+// 教材
+# include <stdio.h>
+// 查找C语言程序中的基本语法错误，如括号不匹配。要正确处理引导（包括单引号、双引号）、转义字符序列与注释
+// rudimentary(基本的) syntax checker for C program
+int brace, brack, paren;
+
+void in_quote(int c);
+void in_comment(void);
+void search(int c);
+
+main(){
+    int c;
+    while((c = getchar()) != EOF){
+        if(c == '/'){
+            if((c = getchar() == '*'))
+                in_comment(); // inside comment
+            else
+                search(c);
+        }
+        else if(c == '\'' || c == '\"')
+            in_quote(c); // inside quote
+        else
+            search(c);
+
+        // output error
+        if(brace < 0){
+            printf("Unbalanced braces\n");
+            brace = 0;
+        }
+        else if(brack < 0){
+            printf("Unbalanced brackets\n");
+            brack = 0;
+        }
+        else if(paren < 0){
+            printf("Unbalanced parentheses\n");
+            paren = 0;
+        }
+    }
+    if(brace > 0)
+        printf("Unbalanced braces\n");
+    if(brack > 0)
+        printf("Unbalanced brackets\n");
+    if(paren > 0)
+        printf("Unbalanced parentheses\n");
+}
+
+// search for rudimentary syntax errors
+void search(int c){
+    if(c == '{')
+        ++brace;
+    else if(c == '}')
+        --brace;
+    else if(c == '[')
+        ++brack;
+    else if(c == ']')
+        --brack;
+    else if(c == '(')
+        ++paren;
+    else if(c == ')')
+        --paren;
+}
+
+// inside of a valid comment
+void in_comment(void){
+    int c, d;
+    c = getchar(); // prev char
+    d = getchar(); // curr char
+    while(c != '*' || d != '/'){ // search for end
+        c = d;
+        d = getchar();
+    }
+}
+
+// inside quote
+void in_quote(int c){
+    int d;
+    while((d = getchar()) != c){ //search end quote
+        if(d == '\\')
+            getchar(); // ignore escape seq
+    }
+}
+~~~
+
+*注意*
+
+``]][[``这种情况是非法的因此要加上
+
+~~~c
+if(brace < 0){
+	printf("Unbalanced braces\n");
+	brace = 0;
+}
+else if(brack < 0){
+	printf("Unbalanced brackets\n");
+	brack = 0;
+}
+else if(paren < 0){
+	printf("Unbalanced parentheses\n");
+	paren = 0;
+}
+~~~
+
