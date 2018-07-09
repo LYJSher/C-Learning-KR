@@ -81,7 +81,142 @@ main(){
 
 const限定符可配合数组参数使用表明函数**不能修改数组元素**的值``int strlen(const char[])``
 
-**如果试图修改const限定符限定的值其结果取决于具体的实现**
+**如果试图修改const限定符限定的值其结果取决于具体的实现**   *~~（编译原理指向静态内容的静态指针啥的？）~~*
 
-？
+###2.6关系运算符与逻辑运算符
+
+#### 2-2不使用&&和||的条件下编写等价代码
+
+~~~c
+for(i=0; i<lim-1 && (c=getchar())!=EOF && c!='\n'; ++i)
+    s[i] = c;
+~~~
+
+~~~c
+enum loop {NO, YES};
+enum loop okloop = YES;
+
+i = 0;
+while(okloop){
+    if(i >= lim-1);
+    	okloop = NO;
+    else if((c = getchar()) == EOF)
+    	okloop = NO;
+    else if((c = getchar()) == '\n')
+    	okloop = NO;
+    else{
+        s[i] = c;
+        i++;
+    }
+}
+~~~
+
+### 2.7类型转换
+
+atoi函数：将字符串s转换为相应的整形数 （如将字符型的“123”转换为整形的123）
+
+~~~c
+int atoi(char s[]){
+    int i, n;
+    n=0;
+    for(i=0; s[i]>='0' && s[i]<='9'; i++)
+        n = 10 * n + ( s[i] - '0' );
+    return n;
+}
+~~~
+
+
+
+~~~c
+int i;
+char c;
+
+i = c;
+c = i;
+~~~
+
+执行后c的值不变，但若把两个赋值语句次序颠倒一下则执行后可能会丢失数据
+
+#### 2-3编写函数htoi(s)，把十六进制数字组成的字符串（包含可选的前缀0x或0X）转换为与之等价的整型值。字符串中允许包含的数字包括：0~9，a~f以及A~F
+
+~~~c
+// 自己写的版本
+# include <stdio.h>
+// 编写函数htoi(s)，把十六进制数字组成的字符串（包含可选的前缀0x或0X）
+// 转换为与之等价的整型值。字符串中允许包含的数字包括：0~9，a~f以及A~F
+int htoi(char s[]){
+    int i, n, isHex;
+    n = 0;
+    i = 0;
+    isHex = 1; // 在十六进制表示数范围内
+    if(s[i] == '0'){
+        i++;
+        if(s[i] == 'X' || s[i] == 'x')
+            i++;
+    }
+    while(isHex){
+        if(s[i] >= '0' && s[i] <= '9')
+            n = 16 * n + (s[i] - '0');
+        else if(s[i] >= 'a' && s[i] <= 'f')
+            n = 16 * n + (s[i] - 'a' + 10);
+        else if(s[i] >= 'A' && s[i] <= 'F')
+            n = 16 * n + (s[i] - 'A' + 10);
+        else
+            isHex = 0;
+        ++i;
+    }
+    return n;
+}
+
+main(){
+    char s[100];
+    char c;
+    int i;
+    for(i=0; (c = getchar())!=EOF; i++)
+        s[i] = c;
+    printf("%d",htoi(s));
+}
+~~~
+
+~~~c
+// 教材
+# include <stdio.h>
+# define YES 1
+# define NO 0
+// htol: convert hexadecimal strings to integer
+int htoi(char s[]){
+    int i, n, inhex, hexdigit;
+
+    i = 0;
+    if(s[i] == '0'){ // skip optional 0x or 0X
+        i++;
+        if(s[i] == 'X' || s[i] == 'x')
+            i++;
+    }
+    n = 0; // integer value to be returned
+    inhex = YES; // assume valid hexadecimal digit
+    for(; inhex == YES; ++i){
+        if(s[i] >= '0' && s[i] <= '9')
+            hexdigit = s[i] - '0';
+        else if(s[i] >= 'a' && s[i] <= 'f')
+            hexdigit = s[i] - 'a' + 10;
+        else if(s[i] >= 'A' && s[i] <= 'F')
+            hexdigit = s[i] - 'A' + 10;
+        else
+            inhex = NO; // not a valid hexadecimal digit
+        if(inhex == YES)
+            n= 16 * n + hexdigit;
+    }
+    return n;
+}
+
+main(){
+    char s[100];
+    char c;
+    int i;
+    for(i=0; (c = getchar())!=EOF; i++)
+        s[i] = c;
+    printf("%d",htoi(s));
+}
+~~~
 
