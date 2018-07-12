@@ -311,3 +311,31 @@ unsigned getbits(unsigned x, int p, int n){
 }
 ~~~
 
+#### 2-6* 编写setbits(x, p, n, y) 返回对x执行下列操作后的结果值，将x中从第p位开始的n个（二进制）位设置为y中最右边n位的值， x的其余各位保持不变
+
+~~~c
+// setbits: set n bits of x at position p with bits of y
+int setbits(unsigned x, int p, int n, unsigned y){
+    return (x & ~(~(~0 << n) << (p + 1 - n)) | (y & ~(~0 << n)) << (p + 1 - n))
+}
+~~~
+
+*注意*
+
+移动位置位（p + 1 - n）可画图理解
+
+#### 2-7*编写invet(x, p, n) 返回对x执行下列操作后的结果值, 将x中从第p位开始的n个（二进制）位求反（即1变0，0变1）x的其余各位保持不变
+
+~~~c
+// invert: inverts the n bits of x that begin at position p
+int invert(unsigned x, int p, int n){
+    return (x ^(~(~0 << n) << (p-n+1)))
+}
+~~~
+
+*注意*
+
+``^``异或操作 不同为1 相同为0
+
+#### 2-8*编写rightrot(x,  n) 返回将x循环右移（即从最右端移出的位将从最左端移入）n（二进制）位后所得到的结果值
+
