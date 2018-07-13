@@ -339,3 +339,53 @@ int invert(unsigned x, int p, int n){
 
 #### 2-8*编写rightrot(x,  n) 返回将x循环右移（即从最右端移出的位将从最左端移入）n（二进制）位后所得到的结果值
 
+~~~c
+// rightrot: rotate x to the right by n positions
+// 方案一
+unsigned rightrot(unsigned x, int n){
+    int rbit; // rightmost
+    int wordlength(void);
+
+    while(n--){
+        rbit = (x & 1) << (wordlength() - 1);
+        x >> 1; // shift x 1 position right
+        x = x | rbit; // complete one rotation
+    }
+    return x;
+}
+
+// 方案二
+unsigned rightrot(unsigned x, int n){
+    int rbits;
+    int wordlength(void);
+
+    if((n = n % wordlength()) > 0){
+        rbits = ~(~0 << n) & x; // n rightmost bits of x
+                               // n rightmost bits of left
+        rbits = rbits << (wordlength() - n) // 注意和上一题区别 移几位草稿纸上画有一下
+        x = x >> n;
+        x = x | rbits;
+    }
+    return x;
+}
+
+// wordlength: computes word length of the machine
+int wordlength(void){
+    int i;
+    unsigned v = (unsigned) ~0;
+
+    for(i=1; (v = v >> 1)>0; i++);
+
+    return i;
+}
+~~~
+
+*注意*
+
+wordlength()计算出运行程序计算机所使用的字长
+
+如果对x进行循环右移的总位数（n）与一个无符号整数的二进制位数（即这台电脑的字长）相等，完成这些次循环右移后的结果将与x完全一样，一次不必再对x进行循环右移
+
+如果n小于这台机器字长，必须将x循环右移n位
+
+如果n大于这台机器字长，需利用取模运算符求出n对这台计算机的字长的余数，再把x循环右移这个余数所代表的次数
