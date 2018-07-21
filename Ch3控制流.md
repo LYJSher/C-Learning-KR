@@ -216,3 +216,82 @@ main(){
 因为``'\t'``为一个字符，转换之后变为``'\'``和``'t'``两个字符 所以需要分别计数
 
 不要漏掉``asd\m\tdf``中``\m``不是转义字符应该正常输出的情况
+
+### 3.5while循环和for循环
+
+编写将字符串转换为对应数值的函数atoi，可以处理可选的前导空白符以及一个可选的加号(+)或减号(-)
+
+~~~c
+int atoi(char s[]){
+    int i, n, sign;
+    for(i=0; isspace(s[i]); i++); // 跳过空白符
+    sign = (s[i] == '-') ? -1 : 1;
+    if(s[i] == '+' || s[i] == '-')
+        i++;
+    for(n=0; isdigit(s[i]); i++)
+        n = 10 * n + (s[i] - '0');
+    return sign*n;
+}
+~~~
+
+***
+
+对整型数组进行排序的Shell排序算法
+
+####**Shell排序算法**的基本思想：（缩小增量排序法）
+
+https://www.cnblogs.com/gcczhongduan/p/4593943.html
+
+先比较距离远的元素而不是像简单交换排序算法那样比较相邻的元素
+
+这样可以快速减少大量无序情况，从而减轻后续工作。
+
+被比较的元素之间的距离逐步减少，知道减少为1，这是排序变成了相邻元素的交换
+
+~~~c
+// 按递增顺序对v[0]...v[n-1]进行排序
+void shellsort(int v[], int n){
+    int gap, i, j, temp;
+    for(gap=n/2; gap>0; gap/=2) //"gap/=2"表明for循环的控制变量不是算术级数(等差数列)
+        for(i=gap; i<n; i++)
+            for(j=i-gap; j>=0&&v[j]>v[j+gap]; j-=gap){
+                temp = v[j];
+                v[j] = v[j+gap];
+                v[j+gap] = temp;
+            }
+}
+~~~
+
+最外层for语句控制两个被比较元素之间的距离，从n/2开始，逐步进行对折，知道距离为0
+
+中间层for语句用于在元素间移动位置
+
+最内层for语句用于比较各对相距gap个位置的元素，当这两个元素逆序时把他们互换
+
+***
+
+reverse(s)倒置字符串s中的各个字符的位置
+
+~~~c
+void reverse(char s[]){
+    int c, i, j;
+    
+    for(i=0, j=strlen(s); i<j; i++,j--){
+        c = s[i];
+        s[i] = s[j];
+        s[j] = c;
+    }
+}
+~~~
+
+逗号运算符：从左至右顺序求值
+
+~~~c
+void reverse(char s[]){
+    int c, i, j;
+    for(i=0, j=strlen(s); i<j; i++,j--)
+        c = s[i], s[i] = s[j], s[j] = c;
+}
+~~~
+
+####3-3 *编写expand(s1, s2)将字符串s1中类似于a-z一类的速记符号在字符串s2中扩展为等价的完整列表abc...xyz。该函数可以处理大小写字母和数字，并可以处理a-b-c、a-z0-9与-a-z等类似的情况。作为前导和尾随的-字符原样打印。
