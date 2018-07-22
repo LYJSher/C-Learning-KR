@@ -295,3 +295,156 @@ void reverse(char s[]){
 ~~~
 
 ####3-3 *编写expand(s1, s2)将字符串s1中类似于a-z一类的速记符号在字符串s2中扩展为等价的完整列表abc...xyz。该函数可以处理大小写字母和数字，并可以处理a-b-c、a-z0-9与-a-z等类似的情况。作为前导和尾随的-字符原样打印。
+
+~~~c
+// 自己写的版本
+# include <stdio.h>
+# include <ctype.h>
+
+// 编写expand(s1, s2)将字符串s1中类似于a-z一类的速记符号在字符串s2中扩展为等价的完整列表abc...xyz。
+// 该函数可以处理大小写字母和数字，并可以处理a-b-c、a-z0-9与-a-z等类似的情况。
+// 作为前导和尾随的-字符原样打印。
+void expand(char s1[], char s2[]){
+    int i, j, state;
+    char c;
+    state = 0; // 初始状态
+    for(i=j=0; s1[i]!='\0'; i++){
+        switch(state){
+        case 0:
+            if(isdigit(s1[i]) || isalpha(s1[i]))
+                state = 1;
+            s2[j++] = s1[i];
+            break;
+        case 1:
+            if(s1[i] == '-')
+                state = 2;
+            else if(!isdigit(s1[i]) && !isalpha(s1[i])){
+                state = 0;
+                s2[j++] = s1[i];
+            }
+            else
+                s2[j++] = s1[i];
+            break;
+        case 2:
+            if(isdigit(s1[i]) || isalpha(s1[i]) && s1[i] > s1[i-2]){ // 展开的前位要大于后位
+                c = s1[i-2];
+                while(c<=s1[i]){
+                    s2[j-1] = c++;// 覆盖第一位展开
+                    j++;
+                }
+                j--;
+                state = 3;
+            }
+            else{
+                state = 0;
+                s2[j++] = s1[i-1];
+                s2[j++] = s1[i];
+            }
+            break;
+        case 3:
+            if(s1[i] == '-')
+                state = 2;
+            else if(isdigit(s1[i]) || isalpha(s1[i])){
+                s2[j++] = s1[i];
+                state = 1;
+            }
+            else{
+                state = 0;
+                s2[j++] = s1[i];
+            }
+
+        }
+    }
+    s2[j] = '\0';
+}
+
+main(){
+    //char a[20] = "a-b-c";
+    //char a[20] = "a-z0-9";
+    char a[20] = "-a-z";
+    char b[100];
+    expand(a, b);
+    printf("%s\n", b);
+    return 0;
+}
+~~~
+
+~~~c
+// 教材
+// expand shorthand notation in s1 into s2
+void expand(char s1[],char s2[]){
+    char c;
+    int i,j;
+
+    while((c = s1[i++]) != '\0'){ // fetch a char from s1[]
+        if(s1[i] == '-' && s1[i+1] >= c){
+            i++;
+            while(c < s1[i]) // expand shorthand
+                s2[j++] = c++;
+        }
+        else
+            s2[j++] = c; // copy the character
+    }
+    s2[j] = '\0';
+}
+~~~
+
+### 3.6do-while循环
+
+itoa函数：将数字n转换为字符串并保存在s中
+
+~~~c
+void itoa(int n, char s[]){
+    int i, sign;
+    
+    if((sign = n) < 0) // 记录符号
+        n = -n; // 使n成为整数
+    i = 0;
+    do{ // 以反序生成数字
+        s[i++] = n % 10 + '0'; //取下一个数字
+    }while((n /= 10) > 0); // 删除该数字
+    if(sign < 0)
+        s[i++] = '-';
+    s[i] = '\0';
+    reverse(s);
+}
+~~~
+
+#### *3-4 在数的对二的补码表示中，如上编写的itoa函数不能处理最大的负数，即n = 
+
+$$
+-(2^{字长-1})
+$$
+
+#### 的情况。解释原因并修改函数使它在任何机器上运行时都能打印出正确的值。
+
+原因：
+$$
+-(2^{字长-1})
+$$
+无法通过语句``n = -n;``转换位一个正数，因为对二的补码所能表示的最大正数只是
+$$
+(2^{字长-1})-1
+$$
+
+~~~c
+// 教材
+# define abs(x) ((x) < 0 ? -(x) : (x))
+void itoa(int n, char s[]){
+    int i, sign;
+    
+    sign = n;
+    i = 0;
+    do{ // 以反序生成数字
+        s[i++] = abs(n % 10) + '0'; //取下一个数字
+    }while((n /= 10) != 0); // 删除该数字
+    if(sign < 0)
+        s[i++] = '-';
+    s[i] = '\0';
+    reverse(s);
+}
+~~~
+
+*注*
+
+变量sign无法保存n的初值，所以用宏abs计算n%10的绝对值，此外将``(n /= 10) > 0``改为``(n /= 10) != 0``避免因为n是负数陷入死循环
