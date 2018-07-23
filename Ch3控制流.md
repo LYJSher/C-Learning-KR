@@ -294,7 +294,7 @@ void reverse(char s[]){
 }
 ~~~
 
-####3-3 *编写expand(s1, s2)将字符串s1中类似于a-z一类的速记符号在字符串s2中扩展为等价的完整列表abc...xyz。该函数可以处理大小写字母和数字，并可以处理a-b-c、a-z0-9与-a-z等类似的情况。作为前导和尾随的-字符原样打印。
+####*3-3 编写expand(s1, s2)将字符串s1中类似于a-z一类的速记符号在字符串s2中扩展为等价的完整列表abc...xyz。该函数可以处理大小写字母和数字，并可以处理a-b-c、a-z0-9与-a-z等类似的情况。作为前导和尾随的-字符原样打印。
 
 ~~~c
 // 自己写的版本
@@ -448,3 +448,65 @@ void itoa(int n, char s[]){
 *注*
 
 变量sign无法保存n的初值，所以用宏abs计算n%10的绝对值，此外将``(n /= 10) > 0``改为``(n /= 10) != 0``避免因为n是负数陷入死循环
+
+#### *3-5 编写itob(n,s,b)将整数n转换为以b为底的数并以字符的形式存到字符串s中。例如itob(n,s,16)把整数n格式化成十六进制整数保存在s中
+
+~~~c
+# include <stdio.h>
+# include <string.h>
+# define abs(x) ((x)> 0 ? (x) : -(x))
+
+void reverse(char s[]){
+    int i,j;
+    char temp;
+    j = strlen(s)-1;
+    for(i=0; i<j; i++, j--){
+        temp = s[i];
+        s[i] = s[j];
+        s[j] = temp;
+    }
+}
+
+void itob(int n, char s[], int b){
+    int sign, i, j;
+    i = 0;
+    sign = n;
+    n = abs(n);
+    do{
+        j = n % b;
+        s[i++] = (j <= 9) ? j + '0' : j + 'a' - 10; // 注意
+    }while((n /= b) > 0);
+
+    if(sign < 0)
+        s[i++] = '-';
+    s[i] = '\0';
+    reverse(s);
+}
+
+main(){
+    char s[20];
+    int n = 255;
+    int b = 16;
+    itob(n,s,b);
+    printf("%d(10) = %s(%d)\n", n, s, b);
+    return 0;
+}
+~~~
+
+### 3.7break语句与continue语句
+
+trim函数用于删除字符串尾部的空格符、制表符与换行符。
+
+当发现最右边的字符位非空格符、非制表符、非换行符时，使用break语句从循环退出。
+
+~~~c
+int trim(char s[]){
+    int n;
+    for(n = strlen(s) - 1; n >= 0; n--)
+        if(s[n] != '' && s[n] != '\t' && s[n] != '\n')
+            break;
+    s[n+1] = '\0';
+    return n;
+}
+~~~
+
