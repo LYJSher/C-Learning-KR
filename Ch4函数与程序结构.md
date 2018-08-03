@@ -195,7 +195,7 @@ printf("%.2g\n", 23.45);
 
 %g至多保留6位有效数字
 
-#### 4-2 对atof函数进行扩充其可以处理123.45e-6的科学表示法，其中，浮点数后面可能会紧跟一个e或E以及一个指数（可能有正负号）
+#### *4-2 对atof函数进行扩充其可以处理123.45e-6的科学表示法，其中，浮点数后面可能会紧跟一个e或E以及一个指数（可能有正负号）
 
 ~~~c
 # include <stdio.h>
@@ -294,3 +294,312 @@ main(){
 因此**连续地除以10**比**连续地乘以0.1**更精确
 
 因此更提倡教材的版本，即将指数部分单独出来进行计算
+
+### 4.3外部变量
+
+逆波兰式计算器
+
+~~~c
+# include <stdio.h>
+# include <stdlib.h> // 为使用atof()函数
+
+# define MAXOP 100 // 操作数或运算符的最大长度
+# define NUMBER '0' // 标识找到一个数
+
+int getop(char []);
+void push(double);
+double pop(void);
+
+// 逆波兰式计算器
+main(){
+    int type;
+    double op2;
+    char s[MAXOP];
+
+    while((type = getop(s)) != EOF){
+        switch(type){
+        case NUMBER:
+            push(atof(s));
+            break;
+        case '+':
+            push(pop() + pop());
+            break;
+        case '*':
+            push(pop() * pop());
+            break;
+        case '-':
+            op2 = pop();
+            push(pop() - op2);
+            break;
+        case '/':
+            op2 = pop();
+            if(op2 != 0.0)
+                push(pop() / op2);
+            else
+                printf("error: zero divisor\n");
+            break;
+        case '\n':
+            printf("\t%.8g\n", pop());
+            break;
+        default:
+            printf("error: unknown command %s\n", s);
+            break;
+        }
+    }
+    return 0;
+}
+
+/***************************************************************************/
+
+# define MAXVAL 100 // 栈val的最大深度
+
+int sp = 0; // 下一个空闲栈位置
+double val[MAXVAL]; // 值栈
+
+// 把f压入值栈中
+void push(double f){
+    if(sp < MAXVAL)
+        val[sp++] = f;
+    else
+        printf("error: stack full, can't push %g\n",f);
+}
+
+// 弹出并返回栈顶的值
+double pop(){
+    if(sp > 0)
+        return val[--sp];
+    else{
+        printf("error: stack empty\n");
+        return 0.0;
+    }
+}
+
+/***************************************************************************/
+# include <ctype.h>
+int getch(void); // 读入下一个待处理的字符
+void ungetch(int); // 把字符放回到输入中
+
+// 获取下一个运算符或数值操作数
+int getop(char s[]){
+    int i, c;
+    while((s[0] = c = getch()) == ' ' || c == '\t'); // 看下面注3
+
+    s[1] = '\0';
+    if(!isdigit(c) && c != '.')
+        return c; // 不是数
+    i = 0;
+    if(isdigit(c)) // 收集整数部分  看下面注3
+        while(isdigit(s[++i] = c = getch()));
+    if(c == '.') // 收集小数部分
+        while(isdigit(s[++i] = c = getch()));
+    s[i] = '\0';
+    if(c != EOF)
+        ungetch(c);
+    return NUMBER;
+}
+
+/***************************************************************************/
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+~~~
+
+*注*
+
+1. main函数不需要了解控制栈的变量信息，只进行压入与弹出操作，因此可以把栈以及相关信息放入外部变量中，并只供push和pop函数访问，而不被main函数访问
+2. getch和ungetch函数用于超前多读入一些输入用来判断已经读入的输入是否足够
+3. 如输入**12.3**时第一次满足`` while((s[0] = c = getch()) == ' ' || c == '\t')``中的不等式时跳出就**已将第一个不等于‘ ’或‘\t’的值付给了s[0]** 
+4. ``s[++i] = c = getch()``的执行顺序
+   1. i++
+   2. c = getch()
+   3. s[i] = c
+
+### *求模运算和求余运算区别 可是答案上不一样 保留意见
+
+其实取模和取余在目标上是一致的，但是因为语言对取余和取模上定义的不同，导致得到的结果不同。
+
+对取余和取模定义不同的语言中，两者的不同点只有一个
+
+**取余运算在计算商值向0方向舍弃小数位**
+
+**取模运算在计算商值向负无穷方向舍弃小数位**（尽可能让商小的原则**）
+
+从上面的区别可以总结出，取余（rem）和取模（mod）在被除数、除数同号时，结果是等同的，**异号时会有区别，所以要特别注意异号的情况**。
+
+下面来看一些例子
+
+1. 取模
+
+   7 mod 4 = 3（商 = 1 或 2，1<2，取商=1）
+
+   -7 mod 4 = 1（商 = -1 或 -2，-2<-1，取商=-2）
+
+   7 mod -4 = -1（商 = -1或-2，-2<-1，取商=-2）
+
+   -7 mod -4 = -3（商 = 1或2，1<2，取商=1）
+
+2. 取余
+
+   7 rem 4 = 3 
+
+   -7 rem 4 = -3
+
+另外各个环境下%运算符的含义不同，比如c/c++，java 为取余，而python则为取模。
+
+#### *4-3 在计算器框架程序中加入取模（%）运算，并注意考虑负数的情况
+
+~~~c
+# include <stdio.h>
+# include <stdlib.h> // 为使用atof()函数
+# include <math.h>
+
+# define MAXOP 100 // 操作数或运算符的最大长度
+# define NUMBER '0' // 标识找到一个数
+
+int getop(char []);
+void push(double);
+double pop(void);
+
+// 逆波兰式计算器
+main(){
+    int type;
+    double op2, op1;
+    char s[MAXOP];
+
+    while((type = getop(s)) != EOF){
+        //printf("%s\n",s);
+        switch(type){
+        case NUMBER:
+            push(atof(s));
+            break;
+        case '+':
+            push(pop() + pop());
+            break;
+        case '*':
+            push(pop() * pop());
+            break;
+        case '-':
+            op2 = pop();
+            push(pop() - op2);
+            break;
+        case '/':
+            op2 = pop();
+            if(op2 != 0.0)
+                push(pop() / op2);
+            else
+                printf("error: zero divisor\n");
+            break;
+        case '%':
+            op2 = pop();
+            if(op2 != 0.0)
+                push(fmod(pop(), op2));
+            break;
+        case '\n':
+            printf("\t%.8g\n", pop());
+            break;
+        default:
+            printf("error: unknown command %s\n", s);
+            break;
+        }
+    }
+    return 0;
+}
+
+/***************************************************************************/
+
+# define MAXVAL 100 // 栈val的最大深度
+
+int sp = 0; // 下一个空闲栈位置
+double val[MAXVAL]; // 值栈
+
+// 把f压入值栈中
+void push(double f){
+    if(sp < MAXVAL)
+        val[sp++] = f;
+    else
+        printf("error: stack full, can't push %g\n",f);
+}
+
+// 弹出并返回栈顶的值
+double pop(){
+    if(sp > 0)
+        return val[--sp];
+    else{
+        printf("error: stack empty\n");
+        return 0.0;
+    }
+}
+
+/***************************************************************************/
+# include <ctype.h>
+int getch(void); // 读入下一个待处理的字符
+void ungetch(int); // 把字符放回到输入中
+
+// 获取下一个运算符或数值操作数
+int getop(char s[]){
+    int i, c;
+    while((s[0] = c = getch()) == ' ' || c == '\t');
+
+    s[1] = '\0';
+    if(!isdigit(c) && c != '.' && c != '-')
+        return c; // 不是数
+
+    i = 0;
+    if(c == '-'){ // 记录负数
+        if(isdigit(c = getch()) || c == '.')
+            s[++i] = c;
+        else{  // 注意只有‘-’出现的情况
+            if(c != EOF)
+                ungetch(c);
+            return '-';
+        }
+    }
+
+    if(isdigit(c)) // 收集整数部分
+        while(isdigit(s[++i] = c = getch()));
+    if(c == '.') // 收集小数部分
+        while(isdigit(s[++i] = c = getch()));
+    s[i] = '\0';
+    if(c != EOF)
+        ungetch(c);
+    return NUMBER;
+}
+/***************************************************************************/
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+~~~
+
+*注*
+
+在识别**- 1**时不为负数 只有在**-1** 符号**-**后面紧跟的字符为数时 才为负数
+
+直接用函数库中fmod函数
