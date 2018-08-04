@@ -428,7 +428,7 @@ void ungetch(int c){
    2. c = getch()
    3. s[i] = c
 
-### *求模运算和求余运算区别 可是答案上不一样 保留意见
+### *求模运算和求余运算区别
 
 其实取模和取余在目标上是一致的，但是因为语言对取余和取模上定义的不同，导致得到的结果不同。
 
@@ -477,7 +477,7 @@ double pop(void);
 // 逆波兰式计算器
 main(){
     int type;
-    double op2, op1;
+    double op2;
     char s[MAXOP];
 
     while((type = getop(s)) != EOF){
@@ -506,7 +506,7 @@ main(){
         case '%':
             op2 = pop();
             if(op2 != 0.0)
-                push(fmod(pop(), op2));
+                push((((int)pop() % (int)op2) + (int)op2) % (int)op2);
             break;
         case '\n':
             printf("\t%.8g\n", pop());
@@ -602,4 +602,209 @@ void ungetch(int c){
 
 在识别**- 1**时不为负数 只有在**-1** 符号**-**后面紧跟的字符为数时 才为负数
 
-直接用函数库中fmod函数
+为保证取模运算正确 可用**``((x % n) + n ) % n``**
+
+#### 4-4 在栈操作中添加几个命令，分别用于在不弹出元素的情况下打印栈顶元素；复制栈顶元素；交换栈顶两个元素的值。另外增加一个命令清空栈。
+
+####*4-5 给计算器增加处理sin、exp、pow等库函数的操作
+
+~~~c
+# include <stdio.h>
+# include <stdlib.h> // 为使用atof()函数
+# include <math.h>
+# include <string.h>
+
+# define MAXOP 100 // 操作数或运算符的最大长度
+# define NUMBER '0' // 标识找到一个数
+# define MATHCOM 'n'
+
+int getop(char []);
+void push(double);
+double pop(void);
+void cleanStack(void);
+
+// 特殊计算命令
+void mathfun(char s[]){
+    double op2;
+    if(strcmp(s, "sin") == 0) // strcmp函数比较两个字符串是否相等 相等返回0
+        push(sin(pop()));
+    else if(strcmp(s, "cos") == 0)
+        push(cos(pop()));
+    else if(strcmp(s, "exp") == 0)
+        push(exp(pop()));
+    else if(strcmp(s, "pow") == 0){
+        op2 = pop();
+        push(pow(pop(), op2));
+    }
+    else
+        printf("error: %s not supported\n",s);
+}
+
+// 逆波兰式计算器
+main(){
+    int type;
+    double op2, op1;
+    char s[MAXOP];
+
+    while((type = getop(s)) != EOF){
+        //printf("%s\n",s);
+        switch(type){
+        case NUMBER:
+            push(atof(s));
+            break;
+        case MATHCOM:
+            mathfun(s);
+            break;
+        case '+':
+            push(pop() + pop());
+            break;
+        case '*':
+            push(pop() * pop());
+            break;
+        case '-':
+            op2 = pop();
+            push(pop() - op2);
+            break;
+        case '/':
+            op2 = pop();
+            if(op2 != 0.0)
+                push(pop() / op2);
+            else
+                printf("error: zero divisor\n");
+            break;
+        case '%':
+            op2 = pop();
+            if(op2 != 0.0)
+                push((((int)pop() % (int)op2) + (int)op2) % (int)op2);
+            break;
+        case '?': // 打印栈顶元素
+            op2 = pop();
+            printf("\t%.8g\n", op2);
+            push(op2);
+            break;
+        case 'd': // 复制栈顶元素
+            op2 = pop();
+            push(op2);
+            push(op2);
+            break;
+        case 's': // 交换栈顶元素
+            op1 = pop();
+            op2 = pop();
+            push(op1);
+            push(op2);
+            break;
+        case 'c': // 清空栈
+            cleanStack();
+            break;
+        case '\n':
+            printf("\t%.8g\n", pop());
+            break;
+        default:
+            printf("error: unknown command %s\n", s);
+            break;
+        }
+    }
+    return 0;
+}
+
+/***************************************************************************/
+
+# define MAXVAL 100 // 栈val的最大深度
+
+int sp = 0; // 下一个空闲栈位置
+double val[MAXVAL]; // 值栈
+
+// 把f压入值栈中
+void push(double f){
+    if(sp < MAXVAL)
+        val[sp++] = f;
+    else
+        printf("error: stack full, can't push %g\n",f);
+}
+
+// 弹出并返回栈顶的值
+double pop(){
+    if(sp > 0)
+        return val[--sp];
+    else{
+        printf("error: stack empty\n");
+        return 0.0;
+    }
+}
+
+// 清空栈
+void cleanStack(){
+    sp = 0;
+}
+/***************************************************************************/
+# include <ctype.h>
+int getch(void); // 读入下一个待处理的字符
+void ungetch(int); // 把字符放回到输入中
+
+// 获取下一个运算符或数值操作数
+int getop(char s[]){
+    int i, c;
+    while((s[0] = c = getch()) == ' ' || c == '\t');
+    s[1] = '\0';
+
+    i = 0;
+    if(islower(c)){
+        while(islower((s[++i] = c = getch())));
+        s[i] = '\0';
+        if(c != EOF){ // 将多读入的字符重新压回缓冲区
+            ungetch(c);
+        }
+        if(strlen(s) > 1)
+            return MATHCOM;
+        else
+            return c; // 不是命令
+    }
+
+    if(!isdigit(c) && c != '.' && c != '-')
+        return c; // 不是数
+
+    i = 0;
+    if(c == '-'){ // 记录负数
+        if(isdigit(c = getch()) || c == '.')
+            s[++i] = c;
+        else{  // 注意只有‘-’出现的情况
+            if(c != EOF)
+                ungetch(c);
+            return '-';
+        }
+    }
+
+    if(isdigit(c)) // 收集整数部分
+        while(isdigit(s[++i] = c = getch()));
+    if(c == '.') // 收集小数部分
+        while(isdigit(s[++i] = c = getch()));
+    s[i] = '\0';
+    if(c != EOF)
+        ungetch(c);
+    return NUMBER;
+}
+/***************************************************************************/
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+~~~
+
+*注*
+
+1. strcmp函数比较两个字符串是否相等 相等返回0
+2. 改进的getop函数只能识别出一个由小写字母组成的字符串并把它返回为类型MATHCOM进一步有主程序调用manthfun进行操作
+
