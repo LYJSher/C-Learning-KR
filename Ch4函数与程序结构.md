@@ -808,3 +808,200 @@ void ungetch(int c){
 1. strcmp函数比较两个字符串是否相等 相等返回0
 2. 改进的getop函数只能识别出一个由小写字母组成的字符串并把它返回为类型MATHCOM进一步有主程序调用manthfun进行操作
 
+#### *4.6 给计算器程序增加处理变量的命令（提供26个具有单个英文字母变量名（大写字母）的变量很容易）增加一个变量（v）存放最近的打印值
+
+结果样例
+
+~~~
+3 A =
+// 把3赋给A
+2 A +
+// 计算2+3(被赋予给变量A的值)=5 并将5赋给v
+v 1 +
+// 结果为5+1=6
+~~~
+
+用大写字母A-Z来代表变量，这些字母作为数组变量的索引，增加一个小写的字母变量v存放打印的值
+
+在遇到一个变量名（A~Z或v）时，计算器把该变量的值压栈
+
+增加一个新的操作符“=”，作用：把栈中的某个元素赋值给这个“=”前面的字母
+
+~~~c
+# include <stdio.h>
+# include <stdlib.h> // 为使用atof()函数
+# include <math.h>
+
+# define MAXOP 100 // 操作数或运算符的最大长度
+# define NUMBER '0' // 标识找到一个数
+
+int getop(char []);
+void push(double);
+double pop(void);
+# define MAXVAL 100 // 栈val的最大深度
+double val[MAXVAL]; // 值栈
+// 逆波兰式计算器
+main(){
+    int type;
+    int letter; // 存放变量为哪个字母
+    double var[26] = {0.0}; // 对应存放变量值
+    double op2, result;
+    char s[MAXOP];
+
+    while((type = getop(s)) != EOF){
+        //printf("%s\n",s);
+        switch(type){
+        case NUMBER:
+            push(atof(s));
+            break;
+        case '+':
+            push(pop() + pop());
+            break;
+        case '*':
+            push(pop() * pop());
+            break;
+        case '-':
+            op2 = pop();
+            push(pop() - op2);
+            break;
+        case '/':
+            op2 = pop();
+            if(op2 != 0.0)
+                push(pop() / op2);
+            else
+                printf("error: zero divisor\n");
+            break;
+        case '%':
+            op2 = pop();
+            if(op2 != 0.0)
+                push((((int)pop() % (int)op2) + (int)op2) % (int)op2);
+            break;
+        case '=': // 这个=只能用于给变量赋值操作
+            pop(); // 把多余压入的字母变量pop
+            if(letter >= 'A' && letter <= 'Z'){ // letter是上一个输入的字母变量 不能用type替代
+                var[letter - 'A'] = pop();
+                push(var[letter - 'A']);
+                result = var[letter - 'A'];
+            }
+            else
+                printf("error: no variable name\n");
+            break;
+        case '\n':
+            result = pop();
+            printf("\t%.8g\n", result);
+            break;
+        default:
+            if(type >= 'A' && type <= 'Z')
+                push(var[type - 'A']);
+            else if(type == 'v')
+                push(result);
+            else
+                printf("error: unknown command %s\n", s);
+            break;
+        }
+        letter = type; // 记录字母
+    }
+    return 0;
+}
+
+/***************************************************************************/
+
+//# define MAXVAL 100 // 栈val的最大深度
+
+int sp = 0; // 下一个空闲栈位置
+//double val[MAXVAL]; // 值栈
+
+// 把f压入值栈中
+void push(double f){
+    if(sp < MAXVAL)
+        val[sp++] = f;
+    else
+        printf("error: stack full, can't push %g\n",f);
+}
+
+// 弹出并返回栈顶的值
+double pop(){
+    if(sp > 0)
+        return val[--sp];
+    else{
+        printf("error: stack empty\n");
+        return 0.0;
+    }
+}
+
+/***************************************************************************/
+# include <ctype.h>
+int getch(void); // 读入下一个待处理的字符
+void ungetch(int); // 把字符放回到输入中
+
+// 获取下一个运算符或数值操作数
+int getop(char s[]){
+    int i, c;
+    while((s[0] = c = getch()) == ' ' || c == '\t');
+
+    s[1] = '\0';
+    if(!isdigit(c) && c != '.' && c != '-')
+        return c; // 不是数
+
+    i = 0;
+    if(c == '-'){ // 记录负数
+        if(isdigit(c = getch()) || c == '.')
+            s[++i] = c;
+        else{  // 注意只有‘-’出现的情况
+            if(c != EOF)
+                ungetch(c);
+            return '-';
+        }
+    }
+
+    if(isdigit(c)) // 收集整数部分
+        while(isdigit(s[++i] = c = getch()));
+    if(c == '.') // 收集小数部分
+        while(isdigit(s[++i] = c = getch()));
+    s[i] = '\0';
+    if(c != EOF)
+        ungetch(c);
+    return NUMBER;
+}
+/***************************************************************************/
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+~~~
+
+#### *4.7 编写ungets(s)，将整个字符串s压回到输入中。ungets函数需要使用buf和bufp吗？它能否仅使用ungetch函数？
+
+若len为字符串s的字符个数，ungets将调用ungetch len次，每次都会把字符串s中的一个字符重新压回输入
+
+ungets函数将按**逆序**把字符串重新压回输入
+
+因为ungetch有对buf和bufp进行操作判断，所以ungets不需要直接操作
+
+~~~c
+// 把字符串s压回输入中
+void ungets(char s[]){
+    int len, i;
+    len = strlen(s);
+    while(len>0)
+        ungetch(s[--len]);
+}
+~~~
+
+
+
+
+
