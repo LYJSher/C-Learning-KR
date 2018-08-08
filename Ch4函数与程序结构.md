@@ -1001,7 +1001,34 @@ void ungets(char s[]){
 }
 ~~~
 
+#### *4.8 假定最多只压回一个字符，请相应地修改getch与ungetch这两个函数
 
+输入缓存区buf不再是一个数组，因为任意时刻缓冲区最多保存一个字符
 
+~~~c
+char buf = 0; // 缓存
 
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    int c;
+    if(buf != 0)
+        c = getchar();
+    else
+        c = buf;
+    buf = 0;
+    return c;
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(buf != 0)
+        printf("ungetch: too many characters\n");
+    else
+        buf = c;
+}
+~~~
+
+*注*
+
+buf的初值是0，而每次getch函数在读入一个字符后，会再次将buf置为0
 
