@@ -1032,3 +1032,58 @@ void ungetch(int c){
 
 buf的初值是0，而每次getch函数在读入一个字符后，会再次将buf置为0
 
+#### *4.9 教材介绍的getch和ungetch函数不能正确处理压回的EOF，考虑压回EOF时应该如何处理
+
+原先版本
+
+~~~c
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+~~~
+
+C语言中不要求char变量是signed还是unsigned类型，**当把一个char类型转换成int类型时，转换结果不应该是一个负值**
+
+不同机器进行转换时可能得到不同结果
+
+负数（-1）        ->        字符        ->        整数
+
+0xFFFF                          0xFF                   0x00FF（255）
+
+0xFFFF                          0xFF                   0xFFFF（-1）
+
+因此如果想像其他字符那样对待**EOF(-1)**，就应该把输入缓冲区buf声明为一个整数数组
+
+即将``char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区``变为``int buf[BUFSIZE];``
+
+这样就不需要上面提到的转换而能正确处理负数
+
+### 4.4 作用域规则
+
+~~~c
+extern int sp;
+extern double val[];
+~~~
+
+只为源文件的其余部分**声明**了一个int类型的外部变量sp和一个double数组类型的外部变量val（**该数组长度在其他地方确定**） **但这个两个声明并没有建立变量或者为他们分配储存单元**
+
+*注*
+
+**外部变量**的**定义**中必须指定数组的长度 但 **extern声明**不一定要指出数组的长度
+
+
+
