@@ -238,7 +238,7 @@ int atoi(char s[]){
 
 对整型数组进行排序的Shell排序算法
 
-####**Shell排序算法**的基本思想：（缩小增量排序法）
+###**&&Shell排序算法**的基本思想：（缩小增量排序法）
 
 https://www.cnblogs.com/gcczhongduan/p/4593943.html
 

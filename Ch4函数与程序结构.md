@@ -1241,3 +1241,122 @@ char pattern[] = {'o', 'u', 'l', 'd', '\0'}; // 注意'\0'
 
 数组长度为5
 
+### 4.10 递归
+
+通过递归，函数printd首先调用他自身打印前面的（高位）数字，然后再打印后面的数字
+
+~~~c
+# include <stdio.h>
+void printd(int n){
+    if(n < 0){
+        putchar('-');
+        n = -n;
+    }
+    if(n / 10)
+        printd(n/10);
+    putchar(n % 10 + '0');
+}
+
+main(){
+    printd(123);
+}
+~~~
+
+*注*
+
+此函数无法处理最大的负数
+
+### **&&快速排序**
+
+http://developer.51cto.com/art/201403/430986.htm
+
+算法思想：
+
+1. 对于一个给定的数组，从中选择一个元素，以该元素为界将其余元素划分为两个子集
+2. 一个子集中的所有元素都小于该元素，另一个子集中的所有元素都大于或等于该元素
+3. 对这两个子集递归执行这一操作，当某个子集中的元素数小于2时，这个子集就不需要再次排序，终止递归
+
+~~~c
+// 之后待改进版本
+# include <stdio.h>
+// 以递增顺序对v[left]...v[right]进行排序
+void qsort(int v[], int left, int right){
+    int i, last;
+    void swap(int v[], int i, int j);
+
+    if(left >= right) // 若数组包含的元素少于两个
+        return; // 不执行任何操作
+    swap(v, left, (left + right)/2); // 将划分子集的元素
+    last = left; // 移动到v[0]
+    for(i=left+1; i<=right; i++){ // 划分子集
+        if(v[i] < v[left])
+            swap(v, ++last, i);
+    }
+    swap(v, left, last); // 恢复划分子集的元素
+    qsort(v, left, last-1);
+    qsort(v, last+1, right);
+}
+
+void swap(int v[], int i, int j){
+    int temp;
+    temp = v[i];
+    v[i] = v[j];
+    v[j] = temp;
+}
+main(){
+    int i;
+    int a[] = {6, 1, 2, 5, 9, 3, 4, 7, 10, 8};
+    qsort(a, 0, 9);
+    for(i=0; i<10; i++)
+        printf("%d ",a[i]);
+}
+~~~
+
+#### 4.12 运用printd函数的设计思想编写一个递归版本的itoa函数，即通过递归调用把整数转换为字符串
+
+~~~c
+# include <stdio.h>
+// 运用printd函数的设计思想编写一个递归版本的itoa函数
+// 即通过递归调用把整数转换为字符串
+// 自己写的版本
+int itoa(int n, char s[]){
+    static int i = 0; // 递归中方便控制i的值
+    if(n < 0){
+        s[i++] = '-';
+        n = -n;
+    }
+    if(n/10){
+        itoa(n/10, s);
+    }
+    s[i++] = n % 10 + '0';
+    s[i] = '\0';
+    return i;
+}
+
+// 教材
+void itoa(int n, char s[]){
+    static int i = 0; // 递归中方便控制i的值
+    
+    if(n/10)
+        itoa(n/10, s);
+    else{
+        i = 0;
+        if(n < 0)
+            s[i++] = '-';
+    }
+    s[i++] = abs(n) % 10 + '0';
+    s[i] = '\0';
+}
+
+main(){
+    char s[10];
+    itoa(-123, s);
+    printf("\n%s", s);
+}
+~~~
+
+*注*
+
+用一个static变量i作为字符数组s的索引
+
+每次递归调用都将用一个'\0'字符来结束字符数组s，但下一次递归调用后（除最后一次）将覆盖这个'\0'
