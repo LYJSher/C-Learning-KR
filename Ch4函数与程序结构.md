@@ -1312,7 +1312,7 @@ main(){
 }
 ~~~
 
-#### 4.12 运用printd函数的设计思想编写一个递归版本的itoa函数，即通过递归调用把整数转换为字符串
+#### *4-12 运用printd函数的设计思想编写一个递归版本的itoa函数，即通过递归调用把整数转换为字符串
 
 ~~~c
 # include <stdio.h>
@@ -1320,7 +1320,7 @@ main(){
 // 即通过递归调用把整数转换为字符串
 // 自己写的版本
 int itoa(int n, char s[]){
-    static int i = 0; // 递归中方便控制i的值
+    static int i = 0; // 递归中方便控制i的值 下注
     if(n < 0){
         s[i++] = '-';
         n = -n;
@@ -1335,7 +1335,7 @@ int itoa(int n, char s[]){
 
 // 教材
 void itoa(int n, char s[]){
-    static int i = 0; // 递归中方便控制i的值
+    static int i = 0; // 递归中方便控制i的值 下注
     
     if(n/10)
         itoa(n/10, s);
@@ -1357,6 +1357,215 @@ main(){
 
 *注*
 
-用一个static变量i作为字符数组s的索引
+用一个static变量i作为字符数组s的索引， 且因为``static int i``在itoa函数内定义，所以**i的作用域为itoa函数内**
 
 每次递归调用都将用一个'\0'字符来结束字符数组s，但下一次递归调用后（除最后一次）将覆盖这个'\0'
+
+#### *4-13 用递归实现revers(s)函数，以将字符串s倒置
+
+字符串中的字符是按**由外到内**的顺序依次进行位置的
+
+~~~c
+# include <stdio.h>
+# include <string.h>
+// 用递归实现revers(s)函数，以将字符串s倒置
+void reverse(char s[]){
+    void reverser(char s[], int i, int j);
+    reverser(s, 0, strlen(s));
+}
+
+void reverser(char s[], int i, int j){
+    char temp;
+    int len = j - 1 - i; // 注意与i位置交换的对应位置为j-1-i
+    if(i < len){
+        temp = s[i];
+        s[i] = s[len];
+        s[len] = temp;
+        i++;
+        reverser(s,i,j); // i先加再引用 下注
+    }
+    else
+        return;
+}
+main(){
+    char s[10] = "abc";
+    char s2[10] = "abcd";
+    reverse(s);
+    reverse(s2);
+    printf("%s\n%s", s,s2);
+}
+~~~
+
+*注*
+
+~~~c
+i++;
+reverser(s, i, j);
+~~~
+
+等价于
+
+~~~c
+reverser(s, ++i, j);
+~~~
+
+本题不适合用递归解决
+
+*另一种做法*
+
+每一层先把最后一个字符提出记录，并把最后一个字符置为\0
+
+将字符串传递到下一层
+
+若字符串长度已经为1，则直接返回
+
+在函数的剩余部分，将字符串所有内容后移一位并将之前的字符放到首位
+
+~~~c
+# include <stdio.h>
+# include <string.h>
+// 用递归实现revers(s)函数，以将字符串s倒置
+void reverse(char s[]){
+    char temp;
+    char c;
+    int i;
+    int len = strlen(s);
+    if(len <= 1)
+        return;
+    temp = s[len-1]; // 最后一个字符
+    s[len-1] = '\0';
+    reverse(s);
+    for(i=len-1; i>0; i--)
+        s[i] = s[i-1];
+    s[0] = temp;
+}
+
+main(){
+    char s[10] = "abc";
+    char s2[10] = "abcd";
+    reverse(s);
+    reverse(s2);
+    printf("abc:%s\nabcd:%s", s,s2);
+}
+~~~
+
+### 4.11.2 宏替换
+
+~~~c
+#define max(A, B) ((A) > (B) ? (A) : (B))
+~~~
+
+语句``x = max(p+q, r+s);``将被替换为
+
+~~~c
+x = ((p+q) > (r+s) ? (p+q) : (r+s));
+~~~
+
+**优点：**
+
+如果对各种类型的参数的处理是一致的，则可以将**同一个宏定义应用于任何数据类型**，而无需针对不同的数据类型定义不同的max函数
+
+**缺点：**
+
+作为参数的表达式要重复计算两次，如果表达式中存在副作用（比如含有自增运算或输入/输出）会出现不正确的情况，eg.
+
+![1534163171530](Ch4函数与程序结构.assets/1534163171530.png)
+
+其中j的值加了两次 实际j的值应该为3
+
+**注意**
+
+使用圆括号以保证计算次序的正确性eg.
+
+![1534163641267](Ch4函数与程序结构.assets/1534163641267.png)
+
+应改为``# define square(X) (X) * (X)``答案才能正确为9
+
+
+
+可以通过**#undef**指令取消名字的宏定义，保证后续的调用是函数调用
+
+~~~c
+#undef getchar
+int getchar(void){...}
+~~~
+
+
+
+形式参数不能用带引号的字符串替换。但是，**如果在替换文本中，参数名以#作为前缀则结果将被扩展为由实际参数替换该参数的带引号的字符串**，例如，可以将它与字符串连接运算结合起来编写一个调试打印宏：
+
+~~~c
+# define dprint(expr) printf(#expr " = %g\n", expr)
+~~~
+
+使用语句``dprint(x/y);``调用该宏时，将宏扩展为
+
+~~~c
+printf("x/y" " = %g\n", expr);
+~~~
+
+其中的字符串被连接起来了，等价于``printf("x/y = %g\n", expr);``
+
+
+
+预处理器预算符##为宏扩展提供了一种连接实际参数的手段。**如果替换文本的参数与##相邻，则该参数将被实际参数替换，##前后的空白符将被删除，并对替换后的结果重新扫描**，例如下面定义的宏paste用于连接两个参数
+
+~~~c
+# define paste(front, back) front ## back
+~~~
+
+因此宏调用``paste(name, 1)``的结果将建立记号name1
+
+####4-14 定义宏swap(t, x, y)以交换t类型的两个参数（使用程序块结构会有帮助）
+
+~~~c
+#include<stdio.h>
+
+#define swap(t, x, y) {t temp;\
+                       temp = x;\
+                       x = y;\
+                       y = temp;}
+int main(){
+    int x = 1;
+    int y = 2;
+    swap(int,x,y);
+    printf("x:%d y:%d", x, y);
+}
+~~~
+
+*注*
+
+上面swap宏只有在两个参数名**都不为temp**的前提下才能工作
+
+### 4.11.3 条件包含
+
+**#if语句**对其中的常量表达式（其中不能包括sizeof、类型转换符或enum常数量）进行求值，若该表达式的值不等于0，则包括其后的各行，直到遇到**#endif**、**#elif**或者**#else**语句为止
+
+在**#if**语句中使用表达式defined（名字），该表达式的值遵循：**当名字已经定义时，其值为1；否则为0**
+
+例如，为了保证hdr.h文件的内容**只被包含一次**则
+
+~~~c
+#if !defined(HDR)
+#define HDR
+/*	hdr.h文件的内容放在这里	*/
+#endif
+~~~
+
+第一次包含头文件hdr.h时将定义名字HDR；此后再次包含该头文件会发现改名字已经定义，直接跳转到#endif处。``#if !defined(HDR)``等价于``#ifndef HDR``
+
+类似的方法也能用来避免多次重复包含同一文件，例如以下这段预处理代码首先测试系统变量SYSTEM，然后根据该变量的值确定包含哪个版本的头文件
+
+~~~c
+#if SYSTEM == SYSV
+	#define HDR "sysv.h"
+#eif SYSTEM == BSD
+	#define HDR "bsd.h"
+#eif SYSTEM == MSDOS
+	#define HDR "msdos.h"
+#else
+	#define HDR "default.h"
+#endif
+#include HDR
+~~~
+
