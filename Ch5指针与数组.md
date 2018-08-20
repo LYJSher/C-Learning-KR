@@ -244,3 +244,222 @@ int main(){
 }
 ~~~
 
+#### 5-2 模仿getint的实现方法，编写一个读取浮点数的函数getfloat。getfloat的返回类型应该是什么？
+
+返回类型int 因为getfloat函数将返回EOF或者紧跟在浮点数后面那个字符的ASCII值，因此返回int
+
+~~~c
+#include<stdio.h>
+#include<ctype.h>
+
+int getch(void);
+void ungetch(int);
+
+// 模仿getint的实现方法，编写一个读取浮点数的函数getfloat
+// 自己写的版本
+int getfloat(float *pn){
+    char c;
+    int sign = 1; // 记录符号 默认为正
+
+    while(isspace(c = getch())); // 跳过空白符
+
+    if(!isdigit(c) && c!='+' && c!='-' && c!='.' && c!=EOF){ // 非数字返回0
+        ungetch();
+        return 0;
+    }
+
+    char tempsign; // 记录符号
+    if(c == '+' || c == '-'){
+        sign = (c == '-') ? -1 : 1;
+        tempsign = c;
+        c = getch();
+    }
+    if(!isdigit(c)){ // + - 后跟的不是数字
+        ungetch(tempsign);
+        if(c != EOF)
+            ungetch(c);
+    }
+    else{ // + - 后为数字
+        *pn = 0.0; // 初始为0
+        for(; isdigit(c); c=getch()){ // 整数部分
+            *pn = 10.0 * *pn + (c - '0');
+        }
+        if(c == '.'){ // 有小数部分
+            float decimal = 0; // 记录小数部分
+            int i = 1; // 记录小数位数
+            for(; isdigit(c = getch()); i*=10){
+                decimal = 10.0 * decimal + (c - '0');
+            }
+            if(decimal != 0){
+                decimal = decimal / i;
+            }
+            *pn = *pn + decimal;
+        }
+        else if(c != EOF)
+            ungetch(c);
+        *pn = sign * *pn; // 保证正负号正确
+        return c;
+    }
+}
+
+// 教材
+int getfloat(float *pn){
+    int c, sign;
+    float power;
+
+    while(isspace(c = getch()));
+
+    if(!isdigit(c) && c!=EOF && c!='.' && c!='+' && c!='-'){
+        ungetch(c);
+        return 0;
+    }
+    sign = (c == '-') ? -1 : 1;
+    if(c == '+' || c == '-')
+        c = getch();
+    for(*pn = 0.0; isdigit(c); c = getch())
+        *pn = 10.0 * *pn + ( c - '0' );
+    if(c == '.')
+        c = getch();
+    for(power=1.0; isdigit(c); c = getch()){
+        *pn = 10.0 * *pn + (c - '0');
+        power *=10.0;
+    }
+    *pn *= sign / power;
+    if(c != EOF)
+        ungetch(c);
+    return c;
+}
+
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+
+int main(){
+    int n, getfloat(float*);
+    float array[5]={0.0};
+    for(n=0; n<5 && getfloat(&array[n])!=EOF; n++);// 必须将array[n]的地址传递给函数getfloat
+                                                    // 否则函数getfloat将无法把转换得到的整数传回调用者
+    int i;
+    for(i=0; i<5; i++)
+        printf("%f\n",array[i]);
+    return 0;
+}
+~~~
+
+### 5.3 指针与数组
+
+~~~c
+int a[10];
+int *pa;
+pa = &a[0]; // 将指针pa指向数组a的第0个元素 即pa的值是元素a[0]的地址
+x = *pa; // 把数组a[0]中的内容复制给变量x
+pa + i; // 数组元素a[i]的地址
+*(pa + i); // 引用数组元素a[i]的内容
+~~~
+
+*注*
+
+``pa = &a[0];``等价于``pa = a;``
+
+对数组元素**a[i]的引用**也可写为``*(a + i)``
+
+``&a[i]``与``a + i``的含义相同
+
+
+
+当数组名传递给一个函数时，实际上传递的是该数组的第一个元素的地址
+
+在被调用函数中，该参数是一个局部变量，因此数组名参数必须是一个指针
+
+~~~c
+// 另一个版本的strlen
+int strlen(char *s){
+    int n;
+    for(n=0; *s != '\0'; s++)
+    	n++;
+    return n;
+}
+~~~
+
+
+
+在函数定义时``char s[]; ``等价于``char *s;``
+
+``f(&a[2])``等价于``f(a+2)``
+
+``f(int arr[]){...}``等价于``f(int *a){...}``
+
+### 5.4 地址算术符
+
+存储分配程序
+
+alloc(n)返回一个指向n个连续字符存储单元的指针，alloc函数的调用者可以利用该指针存储字符序列。
+
+afree(p)释放已分配的存储空间，以便以后重用。
+
+alloc与afree以栈（后进先出）的方式进行存储空间的管理
+
+~~~c
+#define ALLOCSIZE 10000 // 可用空间大小
+
+static char allocbuf[ALLOCSIZE]; // alloc使用的存储区
+static char *allocp = allocbuf; // 下一个空闲位置
+
+char *alloc(int n){ // 返回指向n个字符的指针
+    if(allocbuf + ALLOCSIZE - allocp >= n){ // 有足够的空间
+        allocp += n;
+        return allocp - n; // 分配前的指针
+    }
+    else
+        return 0; 
+}
+
+void afree(char *p){ // 释放p指向的存储区
+    if(p>=allcbuf && p<allocbuf+ALLOCSIZE)
+        allocp = p;
+}
+~~~
+
+
+
+如果指针p和q指向**同一组数组**的成员，那么他们之间可以进行类似==、！=、<、<=的关系比较运算，例如
+
+~~~c
+p < q; // 若为真 则表示p指向的元素的位置在q指向的元素的位置之前
+~~~
+
+*注*
+
+指向**不同数组**的元素指针之间的算术或比较运算**没有定义**
+
+特例：**指针的算术运算中可使用数组最后一个元素的下一个元素的地址**
+
+
+
+如果q和p指向**相同数组**中的元素，且p<q，那么``q-p+1``表示**位于p和q指向的元素之间的元素的数目**
+
+由此写另一个版本的strlen函数
+
+~~~~c
+int strlen(char *s){
+    char *p = s;
+    while(*p != '\0')
+    	p++;
+    return p-s;
+}
+~~~~
+
