@@ -526,3 +526,161 @@ void strcpy(char *s, char *t){
 }
 ~~~
 
+``*t++``的值是执行自增运算符**之前**t所指向的字符
+
+**后缀**运算符++表示在**在读取该字符后才改变t的值**
+
+同样道理，在s执行自增运算之前，字符就被存储到指针s指向的旧位置，
+
+**该字符同时也用来和空字符'\0'进行比较，以控制循环的执行**
+
+最后的结果是一次将t指向的字符复制到s指向的位置，直到遇到结束符'\0'位置（同时也复制该结束符）
+
+
+
+进一步精炼程序，表达式同‘\0’的比较是多余的，因为只要判断表达式的值是否为0
+
+将指针t指向的字符串复制到指针s指向的位置；使用指针方式实现的版本3
+
+~~~c
+void strcpy(char *s, char *t){
+    while((*s++ = *t++))
+        ;
+}
+~~~
+
+**标准库<string.h>中提供的函数strcpy把目标字符串作为函数值返回**
+
+
+
+字符串比较函数strcmp(s,t)：比较字符串s和t并根据s按照字典序小于、等于、大于的结果分别返回负整数、0、正整数，返回值是s和t由前向后逐字符比较时遇到的第一个不相等字符处的字符的差值
+
+~~~c
+int strcmp(char *s, char *t){
+    int i;
+    for(i=0; s[i]==t[i]; i++)
+    	if(s[i] == '\0')
+    		return 0;
+    return s[i] - t[i];
+}
+~~~
+
+用指针方式实现
+
+~~~c
+int strcmp(char *s, char *t){
+    for(; *s == *t; s++, t++)
+    	if(*s == '\0')
+    		return 0;
+    return *s - *t;
+}
+~~~
+
+
+
+***--p** : 在读取指针p指向的字符之前先对p执行自减运算
+
+
+
+进栈出栈的标准用法
+
+~~~c
+*p++ = val; // 将val压入栈
+val = *--p; // 将栈顶元素弹出到val中
+~~~
+
+
+
+#### 5-3 指针方式实现第二章的函数的strcat，函数strcat(s, t)将t指向的字符串复制到s指向的字符串的尾部
+
+~~~c
+# include<stdio.h>
+
+void strcat(char *s, char *t){
+    while(*s != '\0')
+        s++;
+    while(*s++ = *t++);
+}
+
+main(){
+    char s[10] = "abc";
+    char t[10] = "123";
+    strcat(s,t);
+    printf("%s", s);
+}
+
+~~~
+
+#### 5-4 编写strend(s, t) 如果字符串t出现在字符串s的尾部，该函数返回1；否则返回0
+
+~~~c
+# include<stdio.h>
+// 自己写的版本
+int strend(char *s, char *t){
+    int i=0, j=0;
+    char *tp = t;
+    while(*s != '\0'){
+        s++;
+        i++;
+    }
+    while(*t != '\0'){
+        t++;
+        j++;
+    }
+    if(i >= j){
+        while(*s == *t && t!= tp){
+            //printf("%c %c\n", *s, *t);
+            s--;
+            t--;
+        }
+        if(t != tp)
+            return 0;
+        else
+            return 1;
+    }
+    else
+        return 0;
+}
+
+main(){
+    char s1[10] = "abc123";
+    char s2[10] = "23";
+    char t1[10] = "123";
+    char t2[10] = "abc";
+    printf("s1t1 %d\n", strend(s1,t1));
+    printf("s1t2 %d\n", strend(s1,t2));
+    printf("s2t1 %d\n", strend(s2,t1));
+}
+~~~
+
+~~~c
+// 教材
+# include<stdio.h>
+
+int strend(char *s, char *t){
+    char *bs = s;
+    char *bt = t;
+
+    for(; *s; s++);
+    for(; *t; t++);
+    for(; *s == *t; s--, t--){
+        if(t == bt || s == bs)
+            break;
+    }
+    if(*s == *t && t == bt && *s!='\0')
+        return 1;
+    else
+        return 0;
+}
+
+main(){
+    char s1[10] = "abc123";
+    char s2[10] = "23";
+    char t1[10] = "123";
+    char t2[10] = "abc";
+    printf("s1t1 %d\n", strend(s1,t1));
+    printf("s1t2 %d\n", strend(s1,t2));
+    printf("s2t1 %d\n", strend(s2,t1));
+}
+~~~
+
