@@ -684,3 +684,325 @@ main(){
 }
 ~~~
 
+#### 5-5 实现库函数strncpy、strncat和strncmp，他们最多对参数字符串中的前n个字符尽心操作。例如strncpy(s, t, n)将t中最多前n个字符复制到s中
+
+~~~c
+// 自己写的版本
+#include <stdio.h>
+// 实现库函数strncpy、strncat和strncmp，他们最多对参数字符串中的前n个字符尽心操作。
+// 例如strncpy(s, t, n)将t中最多前n个字符复制到s中
+void strncpy(char *s, char *t, int n){
+    while(n--){
+        (*s++) = (*t++);
+    }
+    *s = '\0';
+}
+
+void strncat(char *s, char *t, int n){
+    while(*s++ != '\0');
+    *s--;
+    while(n--){
+        *s++ = *t++;
+    }
+    *s = '\0';
+}
+
+int strncmp(char *s, char *t, int n){ // 错误 未处理s长度<n的情况
+    for(; n && *s == *t; s++, t++, n--);
+    if(n == 0)
+        return 0;
+    return *s - *t;
+}
+
+int main(){
+    char s[10] = "123456";
+    char t[10] = "12375";
+    //strncpy(s, t, 3);
+    //strncat(s,t,6);
+    //printf("%s",s);
+    printf("%d", strncmp(s,t,5));
+    return 0;
+}
+~~~
+
+~~~c
+// 教材
+#include <stdio.h>
+// 实现库函数strncpy、strncat和strncmp，他们最多对参数字符串中的前n个字符尽心操作。
+// 例如strncpy(s, t, n)将t中最多前n个字符复制到s中
+void strncpy(char *s, char *t, int n){
+    while(*t && n--){
+        (*s++) = (*t++);
+    }// 若t中内容短于n会将t末尾的'\0'复制过去
+    while(n-- > 0) // 若t中的数量<n
+        *s = '\0';
+}
+
+void strncat(char *s, char *t, int n){
+    int strlen(char*);
+    strncpy(s+strlen(s), t, n);
+}
+
+int strncmp(char *s, char *t, int n){
+    for(; *s == *t; s++, t++, n--)
+        if(--n <= 0 || *s == '\0')
+            return 0;
+    return *s - *t;
+}
+
+int main(){
+    char s[10] = "123";
+    char t[10] = "12375";
+    //strncpy(s, t, 3);
+    //strncat(s,t,6);
+    //printf("%s",s);
+    printf("%d", strncmp(s,t,4));
+    return 0;
+}
+~~~
+
+#### 5-6 采用指针而非数组索引方式改写getline、atoi、itoa以及他们的变体形式，reverse、strindex、getop等
+
+### 5.6 指针数组以及指向指针的指针
+
+对文本进行排序
+
+1. 读取所有输入行
+2. 对文本进行排序
+3. 按次序打印文本
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+
+#define MAXLINES 5000 // 进行排序的最大文本行数
+
+char *lineptr[MAXLINES]; // 指向文本行的指针数组
+
+int readlines(char *lineptr[], int nlines);
+void writelines(char *lineptr[], int nlines);
+
+void qsort_(char *lineptr[], int left, int right);
+
+// 对输入文本进行排序
+main(){
+    int nlines; // 读取输入行数目
+
+    if((nlines = readlines(lineptr, MAXLINES)) >= 0){
+        qsort_(lineptr, 0, nlines-1);
+        writelines(lineptr, nlines);
+        return 0;
+    }
+    else{
+        printf("error: input too big to sort\n");
+        return 1;
+    }
+}
+
+#define MAXLEN 1000 // 每个输入行的最大长度
+int getline(char *, int);
+char *alloc(int);
+
+#include <malloc.h>
+char *alloc(int n){
+    return (char*)malloc(n*sizeof(char));
+}
+
+int getline(char *s, int max){
+    char c;
+    char *t = s;
+    while(--max>0 && (c = getchar())!=EOF && c!='\n')
+        *s++ = c;
+    if(c == '\n')
+        *s++ = c;
+    *s = '\0';
+    return s - t;
+}
+
+// readlines: 读取输入行
+int readlines(char *lineptr[], int maxlines){
+    int len, nlines;
+    char *p, line[MAXLEN];
+    nlines = 0;
+    while((len = getline(line, MAXLEN)) > 0){ // 获取输入行的输入字符个数
+        if(nlines >= maxlines || (p = alloc(len)) == NULL)
+            return -1;
+        else{
+            line[len-1] = '\0'; // 删除换行符
+            strcpy(p, line);
+            lineptr[nlines++] = p;
+        }
+    }
+    return nlines;
+}
+
+// writelines：写输入行
+/*void writelines(char *lineptr[], int nlines){
+    int i;
+
+    for(i=0; i<nlines; i++){
+        printf("%s\n", lineptr[i]);
+    }
+}*/
+// 由于lineptr本身是个数组名，因此可将writelines写为
+void writelines(char *lineptr[], int nlines){
+    while(nlines--){
+        printf("%s\n",*lineptr++);
+    }
+}
+
+// qsort: 按递增顺序对v[left]...v[right]进行排序
+void qsort_(char*v[], int left, int right){
+
+    int i, last;
+    void swap(char *v[], int i, int j);
+
+    if(left >= right)
+        return;
+
+    swap(v, left, (left + right)/2); // 将一开始中间位置的数作为枢轴并将它放到首位，即与第一个位置的数交换
+    last = left;
+
+    for(i=left+1; i<=right; i++){
+        if(strcmp(v[i], v[left]) < 0) // 将接下来的每个数与首位枢轴的数（即v[left]）相比较
+            swap(v, ++last, i);       // last记录最近（最右）一个满足小于数轴数的位置
+    }                                 // 下一位i如果小于数轴，则将i和last+1位置的数交换，并让last往后移一位，保证last指向的特性
+
+    swap(v, left, last);    // 将枢轴的数和最右一个比枢轴小的数交换位置
+                            // 现在last位置上的数为这一轮的枢轴数，完成last右边都小于它，左边都大于它
+    qsort_(v, left, last-1); // 递归划分
+    qsort_(v, last+1, right);
+}
+
+// swap: 交换v[i]和v[j]
+void swap(char *v[], int i, int j){
+    char *temp;
+    temp = v[i];
+    v[i] = v[j];
+    v[j] = temp;
+}
+
+~~~
+
+#### 5-7 *重写readlines，将输入的文本行存储到由main函数提供的一个数组中，而不是存储到调用的alloc分配的存储空间。该函数的运行速度比改写前快多少？
+
+比原始版本快一点点
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+
+#define MAXLINES 5000 // 进行排序的最大文本行数
+#define MAXSTOR 5000
+
+char *lineptr[MAXLINES]; // 指向文本行的指针数组
+
+int readlines(char *lineptr[], int nlines, char *temp);
+void writelines(char *lineptr[], int nlines);
+
+void qsort_(char *lineptr[], int left, int right);
+
+// 对输入文本进行排序
+main(){
+    int nlines; // 读取输入行数目
+    char temp[MAXSTOR];
+
+    if((nlines = readlines(lineptr, MAXLINES,temp)) >= 0){
+        qsort_(lineptr, 0, nlines-1);
+        writelines(lineptr, nlines);
+        return 0;
+    }
+    else{
+        printf("error: input too big to sort\n");
+        return 1;
+    }
+}
+
+#define MAXLEN 1000 // 每个输入行的最大长度
+int getline(char *, int);
+char *alloc(int);
+
+#include <malloc.h>
+char *alloc(int n){
+    return (char*)malloc(n*sizeof(char));
+}
+
+int getline(char *s, int max){
+    char c;
+    char *t = s;
+    while(--max>0 && (c = getchar())!=EOF && c!='\n')
+        *s++ = c;
+    if(c == '\n')
+        *s++ = c;
+    *s = '\0';
+    return s - t;
+}
+
+// readlines: 读取输入行
+int readlines(char *lineptr[], int maxlines, char *temp){
+    int len, nlines;
+    char line[MAXLEN];
+    char *p = temp;
+    char *linestop = temp + MAXSTOR;
+
+    nlines = 0;
+    while((len = getline(line, MAXLEN)) > 0){ // 获取输入行的输入字符个数
+        if(nlines >= maxlines || p+len > linestop)
+            return -1;
+        else{
+            line[len-1] = '\0'; // 删除换行符
+            strcpy(p, line);
+            lineptr[nlines++] = p;
+            p += len;
+        }
+    }
+    return nlines;
+}
+
+// writelines：写输入行
+/*void writelines(char *lineptr[], int nlines){
+    int i;
+
+    for(i=0; i<nlines; i++){
+        printf("%s\n", lineptr[i]);
+    }
+}*/
+// 由于lineptr本身是个数组名，因此可将writelines写为
+void writelines(char *lineptr[], int nlines){
+    while(nlines--){
+        printf("%s\n",*lineptr++);
+    }
+}
+
+// qsort: 按递增顺序对v[left]...v[right]进行排序
+void qsort_(char*v[], int left, int right){
+
+    int i, last;
+    void swap(char *v[], int i, int j);
+
+    if(left >= right)
+        return;
+
+    swap(v, left, (left + right)/2); // 将一开始中间位置的数作为枢轴并将它放到首位，即与第一个位置的数交换
+    last = left;
+
+    for(i=left+1; i<=right; i++){
+        if(strcmp(v[i], v[left]) < 0) // 将接下来的每个数与首位枢轴的数（即v[left]）相比较
+            swap(v, ++last, i);       // last记录最近（最右）一个满足小于数轴数的位置
+    }                                 // 下一位i如果小于数轴，则将i和last+1位置的数交换，并让last往后移一位，保证last指向的特性
+
+    swap(v, left, last);    // 将枢轴的数和最右一个比枢轴小的数交换位置
+                            // 现在last位置上的数为这一轮的枢轴数，完成last右边都小于它，左边都大于它
+    qsort_(v, left, last-1); // 递归划分
+    qsort_(v, last+1, right);
+}
+
+// swap: 交换v[i]和v[j]
+void swap(char *v[], int i, int j){
+    char *temp;
+    temp = v[i];
+    v[i] = v[j];
+    v[j] = temp;
+}
+~~~
+
