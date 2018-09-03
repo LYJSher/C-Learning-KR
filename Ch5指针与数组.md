@@ -1006,3 +1006,218 @@ void swap(char *v[], int i, int j){
 }
 ~~~
 
+### 5.7 多维数组
+
+~~~c
+static char daytab[2][13] = {
+    {0,31,28,31,30,31,30,31,31,30,31,30,31},
+    {0,31,29,31,30,31,30,31,31,30,31,30,31}
+}
+~~~
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+
+static char daytab[2][13] = {
+    {0,31,28,31,30,31,30,31,31,30,31,30,31},
+    {0,31,29,31,30,31,30,31,31,30,31,30,31}
+};
+
+// 将某年某月的日期表示形式转换为某年中的第几天
+int day_of_year(int year, int month, int day){
+    int i, leap;
+
+    leap = year%4 == 0 && year%100 != 0 || year%400 == 0;
+    for(i=1; i<month; i++)
+        day += daytab[leap][i];
+    return day;
+}
+
+// 将某年中的第几天的日期表示形式转换为某年某月的表示形式
+void month_day(int year, int yearday, int *pmonth, int *pday){
+    int i, leap;
+
+    leap = year%4 == 0 && year%100 != 0 || year%400 == 0;
+    for(i=1; yearday > daytab[leap][i]; i++)
+        yearday -= daytab[leap][i];
+    *pmonth = i;
+    *pday = yearday;
+}
+
+main(){
+    int year = 2018;
+    int month = 2;
+    int day = 1;
+    int datemonth, dateday;
+    int yearday = 32;
+    int *pmonth = &datemonth; // 注意指针创建并初始化
+    int *pday = &dateday;
+    printf("%d\n", day_of_year(year, month, day));
+    month_day(year, yearday, pmonth, pday);
+    printf("%d %d\n", *pmonth, *pday);
+}
+~~~
+
+如果将daytab**作为参数**传给函数f，则f的声明应该写成下列形式
+
+~~~c
+f(int daytab[2][13]){...}
+// 或
+f(int daytab[][13]){...}
+// 或
+f(int (*daytab)[13]){...}// 表明参数是一个指针，指向具有13个整形元素的一维数组
+~~~
+
+注意
+
+``int *daytab[13]``相当于声明一个数组，该数组有13个元素，其中每个元素都是一个指向整形对象的**指针**
+
+####  5-8 对函数day_of_year和month_day进行错误检查
+
+~~~~c
+#include <stdio.h>
+#include <string.h>
+
+static char daytab[2][13] = {
+    {0,31,28,31,30,31,30,31,31,30,31,30,31},
+    {0,31,29,31,30,31,30,31,31,30,31,30,31}
+};
+
+// 将某年某月的日期表示形式转换为某年中的第几天
+int day_of_year(int year, int month, int day){
+    int i, leap;
+
+    leap = year%4 == 0 && year%100 != 0 || year%400 == 0;
+    if(month>12 || month<1 || day > daytab[leap][month] || day < 1)
+        return -1;
+    for(i=1; i<month; i++)
+        day += daytab[leap][i];
+    return day;
+}
+
+// 将某年中的第几天的日期表示形式转换为某年某月的表示形式
+void month_day(int year, int yearday, int *pmonth, int *pday){
+    int i, leap;
+    if(year < 1){
+        *pmonth = -1;
+        *pday = -1;
+        return;
+    }
+    leap = year%4 == 0 && year%100 != 0 || year%400 == 0;
+    if((leap==0 && (yearday>365 || yearday<1) || (leap == 1 && (yearday>366 || yearday<1)){
+        *pmonth = -1;
+        *pday = -1;
+        return;
+    }
+    for(i=1; yearday > daytab[leap][i]; i++)
+        yearday -= daytab[leap][i];
+    *pmonth = i;
+    *pday = yearday;
+}
+
+main(){
+    int year = 2018;
+    int month = 2;
+    int day = 1;
+    int datemonth, dateday;
+    int yearday = 365;
+    int *pmonth = &datemonth; // 注意指针创建并初始化
+    int *pday = &dateday;
+    printf("%d\n", day_of_year(year, month, day));
+    month_day(year, yearday, pmonth, pday);
+    printf("%d %d\n", *pmonth, *pday);
+}
+~~~~
+
+### 5.8 指针数组的初始化
+
+~~~c
+// 返回第n个月的名字
+char *month_name(int n){
+	static char *name[] = {
+        "Illegle month", "January","Feb", "Mar","Apr","May","Jun", "Aug", 			
+        "Sep","Oct","Nov","Dec"
+	};
+	return (n<1 || n>12) ? name[0] : name[n];
+}
+~~~
+
+### 5.9 指针与多为数组
+
+~~~c
+int a[10][20]; // 二维数组分配200个int类型长度的存储空间
+int *b[10]; // 仅分配10个指针，没有初始化
+~~~
+
+`a[3][4]` 和 `b[3][4]`都是对一个int对象的合法应用
+
+~~~c
+// 指针数组
+char *name[] = {"Illegal", "Jan", "Feb", "Mar"};
+
+// 二维数组
+char aname[][15] = {"Illegal", "Jan", "Feb", "Mar"};
+~~~
+
+#### 5-9 用指针方式代替数组下标方式改写函数day_of_year和month_day
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+
+static char daytab[2][13] = {
+    {0,31,28,31,30,31,30,31,31,30,31,30,31},
+    {0,31,29,31,30,31,30,31,31,30,31,30,31}
+};
+
+// 将某年某月的日期表示形式转换为某年中的第几天
+int day_of_year(int year, int month, int day){
+    int leap;
+    char *p;
+
+    leap = year%4 == 0 && year%100 != 0 || year%400 == 0;
+    p = daytab[leap];
+    if(month>12 || month<1 || day > p+month || day < 1)
+        return -1;
+    while(--month)
+        day += (*++p);
+    return day;
+}
+
+// 将某年中的第几天的日期表示形式转换为某年某月的表示形式
+void month_day(int year, int yearday, int *pmonth, int *pday){
+    int leap;
+    char *p;
+    if(year < 1){
+        *pmonth = -1;
+        *pday = -1;
+        return;
+    }
+    leap = year%4 == 0 && year%100 != 0 || year%400 == 0;
+    p = daytab[leap];
+    if((leap==0 && yearday>365) || (leap == 1 && yearday>366)){
+        *pmonth = -1;
+        *pday = -1;
+        return;
+    }
+    while(yearday > *++p)
+        yearday -= *p;
+    *pmonth = p - *(daytab + leap); // 注意
+    *pday = yearday;
+}
+
+main(){
+    int year = 2018;
+    int month = 2;
+    int day = 1;
+    int datemonth, dateday;
+    int yearday = 365;
+    int *pmonth = &datemonth; // 注意指针创建并初始化
+    int *pday = &dateday;
+    printf("%d\n", day_of_year(year, month, day));
+    month_day(year, yearday, pmonth, pday);
+    printf("%d %d\n", *pmonth, *pday);
+}
+~~~
+
