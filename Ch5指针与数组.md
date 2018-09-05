@@ -1066,12 +1066,16 @@ f(int daytab[2][13]){...}
 // 或
 f(int daytab[][13]){...}
 // 或
-f(int (*daytab)[13]){...}// 表明参数是一个指针，指向具有13个整形元素的一维数组
+f(int (*daytab)[13]){...}// 表明参数是一个指针，指向具有13个整形元素的一维数组  指向数组的指针
 ~~~
 
 注意
 
-``int *daytab[13]``相当于声明一个数组，该数组有13个元素，其中每个元素都是一个指向整形对象的**指针**
+**[]运算符优先级高于*运算符**
+
+**指针数组**``int *daytab[13]``相当于声明一个数组，该数组有13个元素，其中每个元素都是一个指向整形对象的**指针**
+
+**指向数组的指针**``int (*daytab)[13])`` 表明参数是一个指针，指向具有13个整形元素的一维数组  指向数组的指针
 
 ####  5-8 对函数day_of_year和month_day进行错误检查
 
@@ -1143,7 +1147,7 @@ char *month_name(int n){
 }
 ~~~
 
-### 5.9 指针与多为数组
+### 5.9 指针与多维数组
 
 ~~~c
 int a[10][20]; // 二维数组分配200个int类型长度的存储空间
@@ -1220,4 +1224,443 @@ main(){
     printf("%d %d\n", *pmonth, *pday);
 }
 ~~~
+
+### 5.10 命令行参数
+
+~~~c
+#include <stdio.h>
+// 回显程序命令行参数；版本1
+main(int argc, char *argv[]){
+    int i;
+
+    for(i=1; i<argc; i++){
+        printf("%s%s", argv[i], (i<argc-1) ? " " : "");
+    }
+    printf("\n");
+    return 0;
+}
+~~~
+
+![1536060457094](Ch5指针与数组.assets/1536060457094.png)
+
+~~~c
+#include <stdio.h>
+// 回显程序命令行参数；版本2
+main(int argc, char *argv[]){
+    while(--argc){
+        printf("%s%s", *++argv, (argc>1) ? " " : "");
+    }
+    printf("\n");
+    return 0;
+}
+~~~
+
+
+
+通过命令行的第一个参数制定带匹配的模式
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+#define MAXLINE 1000
+
+int getline(char *line, int max);
+
+int getline(char *s, int max){
+    char c;
+    char *t = s;
+    while(--max>0 && (c = getchar())!=EOF && c!='\n')
+        *s++ = c;
+    if(c == '\n')
+        *s++ = c;
+    *s = '\0';
+    return s - t;
+}
+// 打印与第一个参数指定的模式匹配的行
+main(int argc, char *argv[]){
+    char line[MAXLINE];
+    int found = 0;
+
+    if(argc != 2)
+        printf("Usage: find pattern\n");
+    else
+        while(getline(line, MAXLINE) > 0)
+            if(strstr(line, argv[1]) != NULL){
+                printf("%s", line);
+                found++;
+            }
+    return found;
+}
+~~~
+
+strstr(s, t)函数返回一个指针，该指针指向字符串t在s中第一次出现的位置，若未出现返回NULL
+
+ ![1536063948113](Ch5指针与数组.assets/1536063948113.png)
+
+进一步改进允许程序带有两个可选参数，其中一个参数表示**-x“打印除匹配模式之外的所有行”**，另一个参数表示    **-n“每个打印的文本行前面加上相应的行号”**
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+#define MAXLINE 1000
+
+int getline(char *line, int max);
+
+int getline(char *s, int max){
+    char c;
+    char *t = s;
+    while(--max>0 && (c = getchar())!=EOF && c!='\n')
+        *s++ = c;
+    if(c == '\n')
+        *s++ = c;
+    *s = '\0';
+    return s - t;
+}
+// 打印与第一个参数指定的模式匹配的行
+main(int argc, char *argv[]){
+    char line[MAXLINE];
+    long lineno = 0;
+    int c, except = 0, number = 0, found = 0;
+
+    while(--argc > 0 && (*++argv)[0] == '-'){// 见注
+        while(c = *++argv[0]){
+            switch(c){
+            case 'x': // 打印除匹配模式之外的所有行
+                except = 1;
+                break;
+            case 'n': // 每个打印的文本行前面加上相应的行号
+                number = 1;
+                break;
+            default:
+                printf("find : illegal option %c\n", c);
+                argc = 0;
+                found = -1;
+                break;
+            }
+        }
+    }
+    if(argc != 1)
+        printf("Usage: find -x -n pattern\n");
+    else
+        while(getline(line, MAXLINE) > 0){
+            lineno++;
+            if((strstr(line, *argv) != NULL) != except){ 
+            // 输入的字符串在line中，一开始的模式在参数argv中
+            // strstr(line, *argv) != NULL表示line在*argv中
+            // 当上述值与except进行比较时，决定是匹配模式的输出还是不匹配的模式的输出 
+                if(number)
+                    printf("%ld:", lineno);
+                printf("%s", line);
+                found++;
+            }
+        }
+    return found;
+}
+~~~
+
+![1536064255681](Ch5指针与数组.assets/1536064255681.png)
+
+*注*
+
+*++argv是一个指向参数字符串的指针
+
+(*++argv)[0]是它的第一个字符，另一种有效形式是**++argv
+
+因为[]与操作数的优先级比*和++高
+
+*++argv[0]是对指针argv[0]进行了自增运算，目的是遍历一个特定的字符串
+
+#### 5-10 *编写程序expr，以计算从命令行输入的逆波兰表达式的值，其中每个运算符或操作数用一个单独的参数表示。例如命令 *expr 2 3 4 + \**  将计算表达式 2\*(3+4)
+
+~~~c
+// 自己写的版本
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#define MAX 1000
+#define NUMBER 1
+#define ERROR -1
+// 编写程序expr，以计算从命令行输入的逆波兰表达式的值，其中每个运算符或操作数用一个单独的参数表示。
+// 例如命令 expr 2 3 4 + *  将计算表达式 2*(3+4)
+
+float val[MAX];
+float *valp = &val[0];
+int valsum = 0; // 记录栈内有效值数目
+
+float pop(){
+    if(valsum == 0)
+        printf("the stack is empty error\n");
+    else{
+        valsum--;
+        return *--valp;
+    }
+}
+
+void push(float a){
+    if(valsum >= MAX)
+        printf("the stack is full error\n");
+    else{
+        *valp = a;
+        valp++;
+        valsum++;
+    }
+}
+
+int getop(char *str){
+    char *p = str;
+    if(isdigit(*p))
+        return NUMBER;
+    else if(strlen(str) == 1)
+        return *p;
+    else
+        return ERROR;
+}
+
+main(int argc, char *argv[]){
+    int c; // 记录操作数或操作符标识
+    float op2 = 0;
+    char *p;
+    if(argc>1){
+        p = argv[1];
+        argv++;
+
+        while(strcmp(p,"expr")==0 && --argc>1){
+            c = getop(*++argv); // 将expr后的参数判断类型后返回到c
+            //printf("%s %d\n",*argv,argc);
+            switch(c){
+            case NUMBER:
+                push(atof(*argv));
+                break;
+            case '+':
+                push(pop() + pop());
+                break;
+            case 'x':
+                push(pop() * pop());
+                break;
+            case '-':
+                op2 = pop();
+                push(pop() - op2);
+                break;
+            case '/':
+                op2 = pop();
+                if(op2)
+                    push(pop() / op2);
+                else
+                    printf("error div 0\n");
+                break;
+            case ERROR:
+                printf("op error\n");
+                break;
+            }
+            if(argc == 2)
+                printf("result: %f\n", pop());
+        }
+        if(argc != 1)
+            printf("illegal option %s\n", *argv);
+    }
+    return 0;
+}
+~~~
+
+~~~c
+// 教材 不太对 不想调试了
+main(int argc, char *argv[]){
+    char s[MAXOP];
+    double op2;
+    while(--argc > 0){
+        ungets(" ");
+        ungets(*++argv);
+        switch(getop(s)){
+        case NUMBER:
+            push(atof(s));
+            break;
+        case '+':
+            push(pop() + pop());
+            break;
+        case 'x':
+            push(pop() * pop());
+            break;
+        case '-':
+            op2 = pop();
+            push(pop() - op2);
+            break;
+        case '/':
+            op2 = pop();
+            if(op2)
+                push(pop() / op2);
+            else
+                printf("error div 0\n");
+            break;
+        default:
+            printf("error:unknown command %s\n",s);
+        }
+    }
+    printf("\t%.8g\n",pop());
+    return 0;
+}
+~~~
+
+####5-11 *修改第一章entab和detab，使他们接受一组作为参数的制表符停止位。如果启动程序时不带参数，则使用默认的制表符停止位设置 
+
+数组tab中的每一个元素对应着文本行的一个位置，如果文本行的某个位置处有一个制表符停止位，与之对应的tab[i]元素就取值YES否则为NO
+
+tab[]相当于一个标尺
+
+~~~c
+// entab
+#include <stdio.h>
+
+#define MAXLINE 100
+#define TABING 8
+#define YES 1
+#define NO 0
+void settab(int argc, char *agv[], char *tab);
+void entable(char *tab);
+int tabpos(int pos, char *tab);
+
+main(int argc, char *argv[]){
+    char tab[MAXLINE + 1];
+
+    settab(argc, argv, tab);
+    entab(tab);
+    return 0;
+}
+
+void entab(char *tab){
+    int c, pos;
+    int nb = 0;
+    int nt = 0;
+
+    for(pos=1; (c=getchar())!=EOF; pos++){
+        if(c == ' '){
+            if(tabpos(pos,tab) == NO)
+                ++nb;
+            else{ // 将空格替换为tab
+                nb = 0;
+                ++nt;
+            }
+        }
+        else{
+            for(; nt>0; nt--)
+                putchar('\t');
+            if(c == '\t')
+                nb = 0;
+            else
+                for(; nb>0; nb--)
+                    putchar('^');
+            putchar(c); // 普通字符
+            if(c == '\n')
+                pos = 0;
+            else if(c == '\t')
+                while(tabpos(pos, tab) != YES)
+                    ++pos;
+        }
+    }
+}
+
+#include <stdlib.h>
+void settab(int argc, char *argv[], char *tab){
+    int i, pos;
+
+    if(argc <= 1){ // 未设置参数 默认值制表符停止位位TABING
+        for(i=1; i<=MAXLINE; i++){
+            if(i % TABING == 0)
+                tab[i] = YES;
+            else
+                tab[i] = NO;
+        }
+    }
+    else{
+        for(i=1; i<=MAXLINE; i++)
+            tab[i] = NO; // 将所有文本置为没有制表停止位
+        while(--argc > 0){
+            pos = atoi(*++argv); // 获得参数 即制表符停止位数
+            if(pos > 0 && pos <= MAXLINE)
+                tab[pos] = YES;
+        }
+    }
+}
+
+int tabpos(int pos, char *tab){
+    if(pos > MAXLINE)
+        return YES;
+    else
+        return tab[pos];
+}
+~~~
+
+~~~~c
+// detab
+#include <stdio.h>
+
+#define MAXLINE 100
+#define TABING 8
+#define YES 1
+#define NO 0
+void settab(int argc, char *agv[], char *tab);
+void detable(char *tab);
+int tabpos(int pos, char *tab);
+
+main(int argc, char *argv[]){
+    char tab[MAXLINE + 1];
+
+    settab(argc, argv, tab);
+    detab(tab);
+    return 0;
+}
+
+void detab(char *tab){
+    int c, pos = 1;
+
+    while((c = getchar()) != EOF){
+        if(c == '\t'){
+            do{
+                putchar('^');
+            }while(tabpos(pos++,tab) != YES);
+        }
+        else if(c == '\n'){
+            putchar(c);
+            pos = 1;
+        }
+        else{
+            putchar(c); // 普通字符
+            ++pos;
+        }
+    }
+}
+
+#include <stdlib.h>
+void settab(int argc, char *argv[], char *tab){
+    int i, pos;
+
+    if(argc <= 1){ // 未设置参数 默认值制表符停止位位TABING
+        for(i=1; i<=MAXLINE; i++){
+            if(i % TABING == 0)
+                tab[i] = YES;
+            else
+                tab[i] = NO;
+        }
+    }
+    else{
+        for(i=1; i<=MAXLINE; i++)
+            tab[i] = NO; // 将所有文本置为没有制表停止位
+        while(--argc > 0){
+            pos = atoi(*++argv); // 获得参数 即制表符停止位数
+            if(pos > 0 && pos <= MAXLINE)
+                tab[pos] = YES;
+        }
+    }
+}
+
+int tabpos(int pos, char *tab){
+    if(pos > MAXLINE)
+        return YES;
+    else
+        return tab[pos];
+}
+~~~~
+
+
+
+#### 5-12 *对程序entab和detab做一些扩充，已接受下列缩写的命令 *entab -m +n* 表示从第m列开始，每隔n列停止。选择（对使用者而言）比较方便的默认行为
 
