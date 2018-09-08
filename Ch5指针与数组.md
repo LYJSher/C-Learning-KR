@@ -2245,3 +2245,571 @@ void writelines(char *lineptr[], int nlines, int decr){
 }
 ~~~
 
+#### 5-15 *增加选项-f，使得排序过程不考虑字母大小之间的区别。例如比较a和A时，认为他们相等。
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+
+#define NUMBERIC 1
+#define DECR 2
+#define FOLD 4
+#define LINES 100
+#define MAXLINE 5000 // 待排序的最大行数
+
+int readlines(char *lineptr[], int nlines);
+void writeline(char *lineptr[], int nlines, int decr);
+
+void qsort_(void *lineptr[], int left, int right, int (*comp)(void *, void *));
+// 这里指针数组参数的类型为通用指针类型void*
+// 因为任何类型的指针都可以转换为void*类型，并且在将它转换为原来的类型时不会丢失信息
+
+int numcmp(char *, char *);
+int charcmp(char *, char *);
+
+static char option = 0;
+
+// 对输入的文本进行排序
+main(int argc, char *argv[]){
+    int nlines; // 读入的输入行
+    int numeric = 0; // 若进行数字排序，则numeric值为1
+    int c, rc = 0;
+    char *lineptr[MAXLINE]; // 指向文本行的指针
+
+    while(--argc > 0 && (*++argv)[0] == '-'){
+        while(c = *++argv[0]){
+            switch(c){ // 效果累加
+            case 'n':
+                option |= NUMBERIC; // option 原本为0000 与NUMBERIC后变为 0001
+                break;
+            case 'r':
+                option |= DECR; // option 原本为0000 与DECR后变为 0010
+                break;
+            case 'f':
+                option |= FOLD; // // option 原本为0000 与FOLD后变为 0100
+                break;
+            default:
+                printf("illegal option %c\n", c);
+                argc = 1;
+                rc = -1;
+                break;
+            }
+        }
+    }
+    if(argc)
+        printf("Usage: test -r -n pattern\n");
+    else if((nlines = readlines(lineptr, MAXLINE)) > 0){
+        if(option & NUMBERIC) // 与NUMBERIC相同
+            qsort_((void **) lineptr, 0, nlines-1,
+                (int (*)(void*, void*))numcmp); // 调用时进行强制类型转换
+        else if(option & FOLD)
+            qsort_((void **) lineptr, 0, nlines-1,
+                (int (*)(void*, void*))charcmp); // 调用时进行强制类型转换
+        else
+            qsort((void **) lineptr, 0, nlines-1,
+                (int (*)(void*, void*))strcmp);
+        writelines(lineptr, nlines, option & DECR);
+    }
+    else{
+        printf("error input too big to sort\n");
+        rc = -1;
+    }
+    return rc;
+}
+
+// 以递增顺序对v[left]...v[right]排序
+void qsort_(void *v[], int left, int right, int (*comp)(void *, void *)){
+    int i, last;
+    void swap(void *v[], int, int);
+
+    if(left >= right) // 数组元素个数小于2,不进行操作
+        return;
+    swap(v, left, (left+right)/2);
+    last = left;
+    for(i=left+1; i<=right; i++){
+        if((*comp)(v[i], v[left]) < 0) // 升序排序
+            swap(v, ++last, i);
+    }
+    swap(v, left, last);
+    qsort_(v, left, last-1, comp);
+    qsort_(v, last+1, right, comp);
+}
+
+#include <stdlib.h>
+
+// 按数值顺序比较s1和s2
+int numcmp(char *s1, char *s2){
+    double v1, v2;
+    v1 = atof(s1);
+    v2 = atof(s2);
+    if(v1 < v2)
+        return -1;
+    else if(v1 > v2)
+        return 1;
+    else
+        return 0;
+}
+
+int charcmp(char *s, char *t){
+    for(; tolower(*s) == tolower(*t); s++, t++)
+        if(*s == '\0')
+            return 0;
+    return tolower(*s) - tolower(*t);
+}
+
+void swap(void *v[], int i, int j){
+    void *temp;
+
+    temp = v[i];
+    v[i] = v[j];
+    v[j] = temp;
+}
+
+int getline(char *s, int max){
+    char c;
+    char *t = s;
+    while(--max>0 && (c = getchar())!=EOF && c!='\n')
+        *s++ = c;
+    if(c == '\n')
+        *s++ = c;
+    *s = '\0';
+    return s - t;
+}
+
+#include <malloc.h>
+char *alloc(int n){
+    return (char*)malloc(n*sizeof(char));
+}
+
+#define MAXLEN 1000 // 每个输入行的最大长度
+int readlines(char *lineptr[], int maxlines){
+    int len, nlines;
+    char *p, line[MAXLEN];
+    nlines = 0;
+    while((len = getline(line, MAXLEN)) > 0){ // 获取输入行的输入字符个数
+        if(nlines >= maxlines || (p = alloc(len)) == NULL)
+            return -1;
+        else{
+            line[len-1] = '\0'; // 删除换行符
+            strcpy(p, line);
+            lineptr[nlines++] = p;
+        }
+    }
+    return nlines;
+}
+
+void writelines(char *lineptr[], int nlines, int decr){
+    int i;
+    if(decr)
+        for(i=nlines-1; i>=0; i--)
+            printf("%s\n", lineptr[i]);
+    else
+        for(i=0; i<nlines; i++)
+            printf("%s\n", lineptr[i]);
+}
+~~~
+
+####5-16 增加选项-d（代表目录顺序），该选项表明，只对字母、数字和空格进行比较。要保证该选项可以和-f组合在一起使用。
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+
+#define NUMBERIC 1
+#define DECR 2
+#define FOLD 4
+#define DIR 8
+#define LINES 100
+#define MAXLINE 5000 // 待排序的最大行数
+
+int readlines(char *lineptr[], int nlines);
+void writeline(char *lineptr[], int nlines, int decr);
+
+void qsort_(void *lineptr[], int left, int right, int (*comp)(void *, void *));
+// 这里指针数组参数的类型为通用指针类型void*
+// 因为任何类型的指针都可以转换为void*类型，并且在将它转换为原来的类型时不会丢失信息
+
+int numcmp(char *, char *);
+int charcmp(char *, char *);
+
+static char option = 0;
+
+// 对输入的文本进行排序
+main(int argc, char *argv[]){
+    int nlines; // 读入的输入行
+    int numeric = 0; // 若进行数字排序，则numeric值为1
+    int c, rc = 0;
+    char *lineptr[MAXLINE]; // 指向文本行的指针
+
+    while(--argc > 0 && (*++argv)[0] == '-'){
+        while(c = *++argv[0]){
+            switch(c){ // 效果累加
+            case 'n':
+                option |= NUMBERIC; // option 原本为0000 与NUMBERIC后变为 0001
+                break;
+            case 'r':
+                option |= DECR; // option 原本为0000 与DECR后变为 0010
+                break;
+            case 'f':
+                option |= FOLD; // // option 原本为0000 与FOLD后变为 0100
+                break;
+            case 'd':
+                option |= DIR;
+                break;
+            default:
+                printf("illegal option %c\n", c);
+                argc = 1;
+                rc = -1;
+                break;
+            }
+        }
+    }
+    if(argc)
+        printf("Usage: test -r -n pattern\n");
+    else if((nlines = readlines(lineptr, MAXLINE)) > 0){
+        if(option & NUMBERIC) // 与NUMBERIC相同
+            qsort_((void **) lineptr, 0, nlines-1,
+                (int (*)(void*, void*))numcmp); // 调用时进行强制类型转换
+        else if(option & FOLD)
+            qsort_((void **) lineptr, 0, nlines-1,
+                (int (*)(void*, void*))charcmp); // 调用时进行强制类型转换
+        else
+            qsort((void **) lineptr, 0, nlines-1,
+                (int (*)(void*, void*))strcmp);
+        writelines(lineptr, nlines, option & DECR);
+    }
+    else{
+        printf("error input too big to sort\n");
+        rc = -1;
+    }
+    return rc;
+}
+
+// 以递增顺序对v[left]...v[right]排序
+void qsort_(void *v[], int left, int right, int (*comp)(void *, void *)){
+    int i, last;
+    void swap(void *v[], int, int);
+
+    if(left >= right) // 数组元素个数小于2,不进行操作
+        return;
+    swap(v, left, (left+right)/2);
+    last = left;
+    for(i=left+1; i<=right; i++){
+        if((*comp)(v[i], v[left]) < 0) // 升序排序
+            swap(v, ++last, i);
+    }
+    swap(v, left, last);
+    qsort_(v, left, last-1, comp);
+    qsort_(v, last+1, right, comp);
+}
+
+#include <stdlib.h>
+
+// 按数值顺序比较s1和s2
+int numcmp(char *s1, char *s2){
+    double v1, v2;
+    v1 = atof(s1);
+    v2 = atof(s2);
+    if(v1 < v2)
+        return -1;
+    else if(v1 > v2)
+        return 1;
+    else
+        return 0;
+}
+
+int charcmp(char *s, char *t){
+    char a, b;
+    int fold = (option & FOLD) ? 1 : 0;
+    int dir = (option & DIR) ? 1 : 0;
+    do{
+        if(dir){ // isalnum 是否为数字或字母
+            while(!isalnum(*s) && *s!=' ' && *s!='\0')
+                s++;
+            while(!isalnum(*t) && *t!=' ' && *t!='\0')
+                t++;
+        }
+        a = fold ? tolower(*s) : *s;
+        s++;
+        b = fold ? tolower(*t) : *t;
+        t++;
+        if(a==b && a=='\0')
+            return 0;
+    }while(a == b);
+    return a - b;
+}
+
+void swap(void *v[], int i, int j){
+    void *temp;
+
+    temp = v[i];
+    v[i] = v[j];
+    v[j] = temp;
+}
+
+int getline(char *s, int max){
+    char c;
+    char *t = s;
+    while(--max>0 && (c = getchar())!=EOF && c!='\n')
+        *s++ = c;
+    if(c == '\n')
+        *s++ = c;
+    *s = '\0';
+    return s - t;
+}
+
+#include <malloc.h>
+char *alloc(int n){
+    return (char*)malloc(n*sizeof(char));
+}
+
+#define MAXLEN 1000 // 每个输入行的最大长度
+int readlines(char *lineptr[], int maxlines){
+    int len, nlines;
+    char *p, line[MAXLEN];
+    nlines = 0;
+    while((len = getline(line, MAXLEN)) > 0){ // 获取输入行的输入字符个数
+        if(nlines >= maxlines || (p = alloc(len)) == NULL)
+            return -1;
+        else{
+            line[len-1] = '\0'; // 删除换行符
+            strcpy(p, line);
+            lineptr[nlines++] = p;
+        }
+    }
+    return nlines;
+}
+
+void writelines(char *lineptr[], int nlines, int decr){
+    int i;
+    if(decr)
+        for(i=nlines-1; i>=0; i--)
+            printf("%s\n", lineptr[i]);
+    else
+        for(i=0; i<nlines; i++)
+            printf("%s\n", lineptr[i]);
+}
+~~~
+
+#### 5-17 **（还没搞定的题）增加字段处理功能，以使得排序程序可以根据行内的不同字段进行排序，每个字段按照一个单独的选项集合进行排序。（英文原书索引进行排序时，索引条目使用了-df选项，而对页码排序时使用了-n选项）
+
+~~~c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <malloc.h>
+#include <ctype.h>
+#include <math.h>
+
+#define NUMBERIC 1
+#define DECR 2
+#define FOLD 4
+#define DIR 8
+#define LINES 100
+#define MAXLEN 1000 // 每个输入行的最大长度
+#define MAXLINE 5000 // 待排序的最大行数
+#define MAXSTR 100
+
+int readlines(char *lineptr[], int nlines);
+void writeline(char *lineptr[], int nlines, int decr);
+void readargs(int argc, char *argv[]);
+void qsort_(void *lineptr[], int left, int right, int (*comp)(void *, void *));
+// 这里指针数组参数的类型为通用指针类型void*
+// 因为任何类型的指针都可以转换为void*类型，并且在将它转换为原来的类型时不会丢失信息
+void substr(char *s, char *t, int maxstr);
+int numcmp(char *, char *);
+int charcmp(char *, char *);
+
+char option = 0;
+int pos1 = 0;
+int pos2 = 0;
+
+// 对输入的文本进行排序
+main(int argc, char *argv[]){
+    char *lineptr[LINES];
+    int nlines;
+    int rc = 0;
+
+    readargs(argc, argv);
+    if((nlines = readlines(lineptr, LINES)) > 0){
+        if(option & NUMBERIC)
+            qsort((void **)lineptr, 0, nlines-1,
+                  (int (*)(void *, void *))numcmp);
+        else
+            qsort((void **)lineptr, 0, nlines-1,
+                  (int (*)(void *, void *))charcmp);
+    }
+    else{
+        printf("input too big to sort \n");
+        rc = -1;
+    }
+    return rc;
+}
+
+void readargs(int argc, char *argv[]){
+    int c;
+    int atoi(char *);
+
+    while(--argc>0 && (c=(*++argv)[0] == '-') || c == '+'){
+        if(c == '-' && !isdigit(*(argv[0]+1)))
+            while(c = *++argv[0])
+                switch(c){
+                case 'd':
+                    option |= DIR;
+                    break;
+                case 'f':
+                    option |= FOLD;
+                    break;
+                case 'n':
+                    option |= NUMBERIC;
+                    break;
+                case 'r':
+                    option |= DECR;
+                    break;
+                default:
+                    printf("sort: illegal option %c\n", c);
+                    printf("Usage: sort -dfnr [+pos1] [-pos2]");
+                    break;
+                }
+        else if(c == '-')
+            pos2 = atoi(argv[0]+1);
+        else if((pos1 = atoi(argv[0]+1)) < 0)
+            printf("Usage: sort -dfnr [+pos1] [-pos2]");
+    }
+    if(argc || pos1 > pos2)
+        printf("Usage: sort -dfnr [+pos1] [-pos2]");
+}
+
+// 以递增顺序对v[left]...v[right]排序
+void qsort_(void *v[], int left, int right, int (*comp)(void *, void *)){
+    int i, last;
+    void swap(void *v[], int, int);
+
+    if(left >= right) // 数组元素个数小于2,不进行操作
+        return;
+    swap(v, left, (left+right)/2);
+    last = left;
+    for(i=left+1; i<=right; i++){
+        if((*comp)(v[i], v[left]) < 0) // 升序排序
+            swap(v, ++last, i);
+    }
+    swap(v, left, last);
+    qsort_(v, left, last-1, comp);
+    qsort_(v, last+1, right, comp);
+}
+
+void substr(char *s, char *str, int maxstr){
+    int i, j, len;
+    extern int pos1, pos2;
+
+    len = strlen(s);
+    if(pos2>0 && len>pos2)
+        len = pos2;
+    else if(pos2>0 && len<pos2)
+        printf("substr: string too short");
+    for(j=0, i=pos1; i<len; i++, j++)
+        str[j] = s[i];
+    str[j] = '\0';
+}
+
+// 按数值顺序比较s1和s2
+int numcmp(char *s1, char *s2){
+    double v1, v2;
+    char str[MAXSTR];
+
+    substr(s1, str, MAXSTR);
+    v1 = atof(s1);
+    substr(s2, str, MAXSTR);
+    v2 = atof(s2);
+    if(v1 < v2)
+        return -1;
+    else if(v1 > v2)
+        return 1;
+    else
+        return 0;
+}
+
+int charcmp(char *s, char *t){
+    char a, b;
+    int i, j, endpos;
+    extern char option;
+    extern int pos1, pos2;
+
+    int fold = (option & FOLD) ? 1 : 0;
+    int dir = (option & DIR) ? 1 : 0;
+
+    i = j = pos1;
+    if(pos2 > 0)
+        endpos = pos2;
+    else if((endpos = strlen(s)) > strlen(t))
+        endpos = strlen(t);
+    do{
+        if(dir){ // isalnum 是否为数字或字母
+            while(i<endpos && !isalnum(s[i]) && s[i]!=' ' && s[i]!='\0')
+                i++;
+            while(j<endpos && !isalnum(t[j]) && t[j]!=' ' && t[j]!='\0')
+                j++;
+        }
+        if(i<endpos && j<endpos){
+            a = fold ? tolower(s[i]) : s[i];
+            i++;
+            b = fold ? tolower(t[j]) : t[j];
+            j++;
+            if(a==b && a=='\0')
+                return 0;
+        }
+    }while(a == b && i < endpos && j < endpos);
+    return a - b;
+}
+
+void swap(void *v[], int i, int j){
+    void *temp;
+
+    temp = v[i];
+    v[i] = v[j];
+    v[j] = temp;
+}
+
+int getline(char *s, int max){
+    char c;
+    char *t = s;
+    while(--max>0 && (c = getchar())!=EOF && c!='\n')
+        *s++ = c;
+    if(c == '\n')
+        *s++ = c;
+    *s = '\0';
+    return s - t;
+}
+
+
+char *alloc(int n){
+    return (char*)malloc(n*sizeof(char));
+}
+
+int readlines(char *lineptr[], int maxlines){
+    int len, nlines;
+    char *p, line[MAXLEN];
+    nlines = 0;
+    while((len = getline(line, MAXLEN)) > 0){ // 获取输入行的输入字符个数
+        if(nlines >= maxlines || (p = alloc(len)) == NULL)
+            return -1;
+        else{
+            line[len-1] = '\0'; // 删除换行符
+            strcpy(p, line);
+            lineptr[nlines++] = p;
+        }
+    }
+    return nlines;
+}
+
+void writelines(char *lineptr[], int nlines, int decr){
+    int i;
+    if(decr)
+        for(i=nlines-1; i>=0; i--)
+            printf("%s\n", lineptr[i]);
+    else
+        for(i=0; i<nlines; i++)
+            printf("%s\n", lineptr[i]);
+}
+~~~
+
