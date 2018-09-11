@@ -2863,7 +2863,7 @@ main(){
         strcpy(datatype, token);
         out[0] = '\0';
         dcl(); // 分析该行的剩余部分
-        if(token != '\n')
+        if(strcmp(token, "\n") != 0)
             printf("syntax error\n");
         printf("%s: %s %s\n", name, out, datatype);
     }
@@ -2935,8 +2935,11 @@ int gettoken(void){ // 返回下一个标记
         ungetch(c);
         return tokentype = NAME;
     }
-    else
+    else{
+        *p++ = c;
+        *p = '\0';
         return tokentype = c;
+    }
 }
 # define BUFSIZE 100
 
@@ -2986,11 +2989,11 @@ main(){
         while((type = gettoken()) != '\n')
             if(type == PARENS || type == BRACKETS)
                 strcat(out, token);
-            else if(type == '*'){
+            else if(type == '*'){ // 如果为指针为了保证正确就在指针的那一项加括号
                 sprintf(temp, "(*%s)", out);
                 strcpy(out, temp);
             }
-            else if(type == NAME){
+            else if(type == NAME){ // 最后的返回类型
                 sprintf(temp, "%s %s", token, out);
                 strcpy(out, temp);
             }
@@ -3082,7 +3085,7 @@ main(){
         strcpy(datatype, token);
         out[0] = '\0';
         dcl(); // 分析该行的剩余部分
-        if(token != '\n')
+        if(strcmp(token, "\n") != 0)
             printf("syntax error\n");
         printf("%s: %s %s\n", name, out, datatype);
     }
@@ -3163,8 +3166,11 @@ int gettoken(void){ // 返回下一个标记
         ungetch(c);
         return tokentype = NAME;
     }
-    else
+    else{
+        *p++ = c;
+        *p = '\0';
         return tokentype = c;
+    }
 }
 # define BUFSIZE 100
 
@@ -3185,7 +3191,7 @@ void ungetch(int c){
 }
 ~~~
 
-#### 5-19 ** （有问题）修改undcl程序，使它在把文字描述转换为声明的过程中不会生成多余的圆括号
+#### 5-19 *修改undcl程序，使它在把文字描述转换为声明的过程中不会生成多余的圆括号
 
 事实上，只有当下一个记号是()或[]时，undcl程序才必要在自己的输出结果中使用记号
 
@@ -3236,12 +3242,27 @@ main(){
     return 0;
 }
 
+enum{NO, YES};
+int prevtoken;
+int nexttoken(void){
+    int type;
+    extern int prevtoken;
+
+    type = gettoken();
+    prevtoken = YES;
+    return type;
+}
+
 // gettoken用来跳过空格与制表符，以查找输入的下一个记号
 int gettoken(void){ // 返回下一个标记
-    int c, getchar(void);
+    int c, getch(void);
     void ungetch(int);
     char *p = token;
 
+    if(prevtoken == YES){ // 在读入下一个记号前先检查是否已经有一个可用记号
+        prevtoken = NO;
+        return tokentype;
+    }
     while((c = getch()) == ' ' || c == '\t')
         ;
     if(c == '('){
@@ -3267,20 +3288,11 @@ int gettoken(void){ // 返回下一个标记
         ungetch(c);
         return tokentype = NAME;
     }
-    else
+ 	else{
+        *p++ = c;
+        *p = '\0';
         return tokentype = c;
-}
-
-
-enum{NO, YES};
-int prevtoken;
-int nexttoken(void){
-    int type;
-    extern int prevtoken;
-
-    type = gettoken();
-    prevtoken = YES;
-    return type;
+    }
 }
 
 # define BUFSIZE 100
@@ -3332,7 +3344,7 @@ main(){
         strcpy(datatype, token);
         out[0] = '\0';
         dcl(); // 分析该行的剩余部分
-        if(token != '\n')
+        if(strcmp(token, "\n") != 0)
             printf("syntax error\n");
         printf("%s: %s %s\n", name, out, datatype);
     }
@@ -3421,8 +3433,11 @@ int gettoken(void){ // 返回下一个标记
         ungetch(c);
         return tokentype = NAME;
     }
-    else
+    else{
+        *p++ = c;
+        *p = '\0';
         return tokentype = c;
+    }
 }
 # define BUFSIZE 100
 
@@ -3447,7 +3462,7 @@ int typespec(void);
 int typequal(void);
 int compare(char **, char **);
 
-void parmdcl(void){
+void parmdcl(void){ // 分析参数
     do{
         dclspec();
     }while(tokentype == ',');
