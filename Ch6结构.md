@@ -232,5 +232,176 @@ void ungetch(int c){
 
 \#if语句不能使用sizeof因为预处理器不对类型名进行分析，但处理器并不计算、#define中的表达式，所以这样写合法
 
+#### 6-1 上诉getword函数不能正确处理下划线、字符串常量、注释及预处理控制器指令。请编写一个更完善的getword函数
+
+~~~c
+// 从输入中读取下一个单词或字符
+int getword(char *word, int lim){
+    int c, d, getch(void), comment(void);
+    void ungetch(int);
+    char *w = word;
+
+    while(isspace(c = getch()));
+    
+    if(c != EOF)
+        *w++ = c;
+        
+    // 处理下划线和与编译器控制指令    
+    if(isalpha(c) || c=='_' || c=='#'){ // 第一个字符是字母数字下划线或# 
+        for(; --lim>0; w++)
+            if(!isalnum(*w = getch()) && *w != '_'){
+                ungetch(*w);
+                break;
+            }
+    }
+    else if(c == '\'' || c == '\"'){ // 处理字符串常量
+        for(; --lim>0; w++)
+            if((*w = getch()) == '\\') /* 若出现\ 往后多读一个\ */
+                *++w = getch();
+            else if(*w == c){
+                w++;
+                break;
+            }
+            else if(*w == EOF)
+                break;
+    }
+    else if(c == '\\')
+        if((d = getch()) == '*')
+            c = comment();
+        else 
+            ungetch(d);
+    *w = '\0';
+    return c;
+}
+
+int comment(void){
+    int c;
+    while((c = getch()) != EOF)
+        if(c == '*')
+            if((c = getch()) == '\\')
+                break;
+            else
+                ungetch(c);
+    return c;
+}
+~~~
+
+### 6.4 指向结构的指针
+
+~~~c
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+#define MAXWORD 100
+#define NKEYS (sizeof keytab / sizeof(struct key)) // keytab中的个数
+
+struct key{
+    char *word;
+    int count;
+} keytab[] = {
+    { "auto", 0 },
+    { "break", 0 },
+    { "case", 0 },
+    { "char", 0 },
+    { "const", 0 },
+    { "continue", 0 },
+    { "default", 0 },
+    { "unsigned", 0 },
+    { "void", 0 },
+    { "volatile", 0 },
+    { "while", 0 }
+}; // 关键字序列以升序存储在keytab中
+
+int getword(char *, int);
+struct key *binsearch(char *, struct key *, int);
+
+// 统计关键字的出现次数：采用指针方式的版本
+main(){
+    char word[MAXWORD];
+    struct key *p;
+
+    while(getword(word, MAXWORD) != EOF){
+        if(isalpha(word[0]))
+            if((p = binsearch(word, keytab, NKEYS)) != NULL)
+                p->count++;
+    }
+    for(p=keytab; p<keytab+NKEYS; p++)
+        if(p->count > 0)
+            printf("%4d %s\n", p->count, p->word);
+    return 0;
+}
+
+// 在tab[0]到tab[n-1]中查找与读入单词匹配的元素
+struct key *binsearch(char *word, struct key *tab, int n){
+    int cond;
+    struct key *low = &tab[0]; // low初值指向表头元素的指针
+    struct key *high = &tab[n]; // high初值指向表未元素后面一个元素的指针
+    
+    while(low <= high){
+        mid = low + (high-low)/2; // 注 high-low得到之间的元素个数
+        if((cond = strcmp(word, tab->word)) < 0)
+            high = mid;
+        else if(cond > 0)
+            low = mid + 1;
+        else
+            return mid;
+    }
+    return NULL;
+}
+~~~
+
+*注*
+
+无法通过下列表达式计算中间元素的位置
+
+~~~c
+mid = (low + high) / 2; // 错误
+~~~
+
+因为两个指针之间的加法运算是非法的，但是**指针的减法运算却是合法的（指向同一个数组），high-low的值就是数组元素的个数**
+
+&tab[-1] 和 &tab[n] 都超过了数组tab的范围，前者绝对非法，后者的间接引用也是非法的
+
+**C语言的定义保证数组末尾之后的第一个元素（即&tab[n]）的指针算术运算可以正确执行**
+
+
+
+结构的长度不一定等于各成员长度的和，因为不同的对象有不同的对齐要求，所以结构中可能会出现未命名的“空穴”（hole），假设char类型占用1个字节，int类型占用4个字节，则下列结构
+
+~~~c
+struct{
+	char c;
+    int i;
+};
+~~~
+
+可能需要8个字节的存储空间，而不是5个字节，使用sizeof运算符可以返回正确的对象的长度
+
+### 6.5 自引用结构
+
+统计输入中所有单词的出现次数
+
+~~~c
+struct tnode{ // 树的节点
+    char *word; // 指向单词的指针
+    int count; // 单词出现的次数
+    struct tnode *left; // 左子节点
+    struct tnode *right; // 右子节点
+};
+~~~
+
+
+
+#### 6-2 用以读入一个C语言程序，并按字母表顺序分组打印变量名，要求每一组内各变量名的前6个字符相同，其余字符不同。字符串和注释中的单词不予考虑。请将6作为一个可在命令行中设定的参数。
+
+#### 6-3 编写一个交叉引用程序，打印文档中所有单词的列表，并且每个单词还有一个列表，记录出现过的该单词的行号。对the、and等非实义单词不予考虑。
+
+#### 6-4 根据单词的出现频率按降序打印输入的各个不同单词，并在每个单词的前面标上它的出现次数
+
+#### 6-5 编写函数undef，它将从由lookup和install维护的表中删除一个变量名及其定义
+
+#### 6-6 以本节介绍的函数为基础，编写一个适合C语言程序使用的#define处理器的简单版本（即无参数的情况）。你会发现getch和ungetch函数非常有用。
+
 
 

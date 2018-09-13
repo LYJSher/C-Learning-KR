@@ -2591,7 +2591,7 @@ void writelines(char *lineptr[], int nlines, int decr){
 }
 ~~~
 
-#### 5-17 **（还没搞定的题）增加字段处理功能，以使得排序程序可以根据行内的不同字段进行排序，每个字段按照一个单独的选项集合进行排序。（英文原书索引进行排序时，索引条目使用了-df选项，而对页码排序时使用了-n选项）
+#### 5-17 *增加字段处理功能，以使得排序程序可以根据行内的不同字段进行排序，每个字段按照一个单独的选项集合进行排序。（英文原书索引进行排序时，索引条目使用了-df选项，而对页码排序时使用了-n选项）
 
 ~~~c
 #include <stdio.h>
@@ -2632,12 +2632,16 @@ main(int argc, char *argv[]){
 
     readargs(argc, argv);
     if((nlines = readlines(lineptr, LINES)) > 0){
-        if(option & NUMBERIC)
+        if(option & NUMBERIC){
             qsort((void **)lineptr, 0, nlines-1,
                   (int (*)(void *, void *))numcmp);
-        else
+            writelines(lineptr, nlines, option & DECR);
+        }
+        else{
             qsort((void **)lineptr, 0, nlines-1,
                   (int (*)(void *, void *))charcmp);
+            writelines(lineptr, nlines, option & DECR);
+        }
     }
     else{
         printf("input too big to sort \n");
@@ -2648,9 +2652,8 @@ main(int argc, char *argv[]){
 
 void readargs(int argc, char *argv[]){
     int c;
-    int atoi(char *);
 
-    while(--argc>0 && (c=(*++argv)[0] == '-') || c == '+'){
+    while(--argc>0 && (c=(*++argv)[0]) == '-' || c == '+'){
         if(c == '-' && !isdigit(*(argv[0]+1)))
             while(c = *++argv[0])
                 switch(c){
@@ -3314,7 +3317,7 @@ void ungetch(int c){
 }
 ~~~
 
-#### 5-20 **（还没看）扩展dcl程序的功能，使它能够处理包括其他成分的声明，例如带有函数参数类型的声明、带有类似于const限定符的声明等
+#### 5-20 *扩展dcl程序的功能，使它能够处理包括其他成分的声明，例如带有函数参数类型的声明、带有类似于const限定符的声明等
 
 ~~~c
 #include <stdio.h>
