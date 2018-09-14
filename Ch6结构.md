@@ -391,9 +391,140 @@ struct tnode{ // 树的节点
 };
 ~~~
 
+两个结构互相引用
 
+~~~c
+struct t{
+	struct s *p; // p指向一个s结构
+};
+
+struct s{
+    struct t *q; // q指向一个t结构
+}；
+~~~
+
+~~~c
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define MAXWORD 100
+
+struct tnode{ // 树的节点
+    char *word; // 指向单词的指针
+    int count; // 单词出现的次数
+    struct tnode *left; // 左子节点
+    struct tnode *right; // 右子节点
+};
+
+struct tnode *talloc(void);
+char *strdup_(char *s);
+struct tnode *addtree(struct tnode *, char *); // 将单词插入树中
+void treeprint(struct tnode *);
+int getword(char *, int); // 读入单词
+
+// 单词出现频率的统计
+main(){
+    struct tnode *root;
+    char word[MAXWORD];
+
+    root = NULL;
+    while(getword(word, MAXWORD) != EOF)
+        if(isalpha(word[0]))
+            root = addtree(root, word);
+    treeprint(root);
+    return 0;
+}
+
+// addtree在p的位置或p的下方增加一个节点
+struct tnode *addtree(struct tnode *p, char *w){
+    int cond;
+
+    if(p == NULL){ // 该单词是一个新单词
+        p = talloc(); // 创建一个新节点
+        p->word = strdup(w);
+        p->count = 1;
+        p->left = p->right = NULL;
+    }
+    else if((cond = strcmp(w, p->word)) == 0) // 新单词与节点中的单词匹配
+        p->count++;
+    else if(cond < 0)
+        p->left = addtree(p->left, w); // 新单词小于节点单词，进入左子树
+    else
+        p->right = addtree(p->right, w); // 新单词大于节点单词，进入右子树
+    return p;
+}
+
+// 按顺序打印树p
+void treeprint(struct tnode *p){
+    if(p != NULL){
+        treeprint(p->left);
+        printf("%4d %s\n", p->count, p->word);
+        treeprint(p->right);
+    }
+}
+
+// 创建一个tnode
+struct tnode *talloc(void){
+    return (struct tnode *) malloc(sizeof(struct tnode));
+}
+
+// 把通过其参数传入的字符串复制到某个安全的位置
+char *strdup_(char *s){
+    char *p;
+    p = (char *)malloc(strlen(s) + 1);
+    if(p != NULL)
+        strcpy(p, s);
+    return p;
+}
+
+// 从输入中读取下一个单词或字符
+int getword(char *word, int lim){
+    int c, getch(void);
+    void ungetch(int);
+    char *w = word;
+
+    while(isspace(c = getch()));
+    if(c != EOF)
+        *w++ = c;
+    if(!isalpha(c)){
+        *w = '\0';
+        return c;
+    }
+    for(; --lim>0; w++)
+        if(!isalnum(*w = getch())){ // 识别字母数字
+            ungetch(*w);
+            break;
+        }
+    *w = '\0';
+    return word[0];
+}
+
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+~~~
 
 #### 6-2 用以读入一个C语言程序，并按字母表顺序分组打印变量名，要求每一组内各变量名的前6个字符相同，其余字符不同。字符串和注释中的单词不予考虑。请将6作为一个可在命令行中设定的参数。
+
+~~~
+
+~~~
 
 #### 6-3 编写一个交叉引用程序，打印文档中所有单词的列表，并且每个单词还有一个列表，记录出现过的该单词的行号。对the、and等非实义单词不予考虑。
 
