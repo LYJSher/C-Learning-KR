@@ -232,7 +232,7 @@ void ungetch(int c){
 
 \#if语句不能使用sizeof因为预处理器不对类型名进行分析，但处理器并不计算、#define中的表达式，所以这样写合法
 
-#### 6-1 上诉getword函数不能正确处理下划线、字符串常量、注释及预处理控制器指令。请编写一个更完善的getword函数
+#### 6-1 *上诉getword函数不能正确处理下划线、字符串常量、注释及预处理控制器指令。请编写一个更完善的getword函数
 
 ~~~c
 // 从输入中读取下一个单词或字符
@@ -256,7 +256,7 @@ int getword(char *word, int lim){
     }
     else if(c == '\'' || c == '\"'){ // 处理字符串常量
         for(; --lim>0; w++)
-            if((*w = getch()) == '\\') /* 若出现\ 往后多读一个\ */
+            if((*w = getch()) == '\\') /* 若出现\ 往后多读一个\，为了防止 \' 和 \" 的错误 */
                 *++w = getch();
             else if(*w == c){
                 w++;
@@ -277,7 +277,7 @@ int getword(char *word, int lim){
 int comment(void){
     int c;
     while((c = getch()) != EOF)
-        if(c == '*')
+        if(c == '*') // 一定是*后面紧跟/，即出现 */ 才算注释结束
             if((c = getch()) == '\\')
                 break;
             else
@@ -520,15 +520,586 @@ void ungetch(int c){
 }
 ~~~
 
-#### 6-2 用以读入一个C语言程序，并按字母表顺序分组打印变量名，要求每一组内各变量名的前6个字符相同，其余字符不同。字符串和注释中的单词不予考虑。请将6作为一个可在命令行中设定的参数。
+#### 6-2 *用以读入一个C语言程序，并按字母表顺序分组打印变量名，要求每一组内各变量名的前6个字符相同，其余字符不同。字符串和注释中的单词不予考虑。请将6作为一个可在命令行中设定的参数。
 
+~~~c
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define MAXWORD 100
+#define YES 1
+#define NO 0
+
+struct tnode{
+    char *word;
+    int match;
+    struct tnode *left;
+    struct tnode *right;
+};
+
+struct tnode *addtreex(struct tnode *, char *, int, int *);
+void treeprint(struct tnode *);
+int getword(char *, int);
+// 用以读入一个C语言程序，并按字母表顺序分组打印变量名
+// 要求每一组内各变量名的前6个字符相同，其余字符不同。
+// 字符串和注释中的单词不予考虑。请将6作为一个可在命令行中设定的参数。
+main(int argc, char *argv[]){
+    struct tnode *root;
+    char word[MAXWORD];
+    int found = NO;
+    int num;
+
+    num = (--argc && (*++argv)[0] == '-') ? atoi(argv[0]+1) : 6; // 从命令行中获取参数，默认为6
+    root = NULL;
+    while(getword(word, MAXWORD) != EOF){
+        if(isalpha(word[0]) && strlen(word) >= num) //如果字母长度超过设定长度，增加新节点
+            root = addtreex(root, word, num, &found); // 传found的地址
+        found = NO; // 每增加节点后初始化found的值为NO
+        printf("********************\n");
+        treeprint(root);
+        printf("********************");
+    }
+    treeprint(root);
+    return 0;
+}
+
+struct tnode *talloc(void);
+char *strdup_(char *s);
+int compare(char *, struct tnode *, int, int *);
+
+struct tnode *addtreex(struct tnode *p, char *w, int num, int *found){
+    int cond;
+
+    if(p == NULL){
+        p = talloc();
+        p->word = strdup_(w);
+        p->match = *found;
+        p->left = p->right = NULL;
+    }
+    else if((cond = compare(w, p, num, found)) < 0) // 新加入单词小于根节点单词，将新单词以其左节点为根，加入树中
+        p->left = addtreex(p->left, w, num, found);
+    else if(cond > 0)
+        p->right = addtreex(p->right, w, num, found);
+    return p;
+}
+
+int compare(char *s, struct tnode *p, int num, int *found){
+    int i;
+    char *t = p->word;
+
+    for(i=0; *s == *t; i++, s++, t++) // 新单词与节点单词相同，是已经出现过的单词
+        if(*s == '\0')
+        return 0;
+    if(i >= num){        // 前num个字符相匹配，在一个组中，
+        *found = YES;    //将变量树中的单词相对应的*found和p->match置YES
+        p->match = YES;
+    }
+    return *s - *t; // 返回新单词和节点单词的大小关系
+}
+
+// 按顺序打印树p
+void treeprint(struct tnode *p){
+    if(p != NULL){
+        treeprint(p->left);
+        if(p->match)
+            printf("%s\n", p->word);
+        treeprint(p->right);
+    }
+}
+
+// 创建一个tnode
+struct tnode *talloc(void){
+    return (struct tnode *) malloc(sizeof(struct tnode));
+}
+
+// 把通过其参数传入的字符串复制到某个安全的位置
+char *strdup_(char *s){
+    char *p;
+    p = (char *)malloc(strlen(s) + 1);
+    if(p != NULL)
+        strcpy(p, s);
+    return p;
+}
+
+void ungetch(int);
+int getch(void);
+// 从输入中读取下一个单词或字符
+int getword(char *word, int lim){
+    int c, d, comment(void);
+
+    char *w = word;
+
+    while(isspace(c = getch()));
+
+    if(c != EOF)
+        *w++ = c;
+
+    // 处理下划线和与编译器控制指令
+    if(isalpha(c) || c=='_' || c=='#'){ // 第一个字符是字母数字下划线或#
+        for(; --lim>0; w++)
+            if(!isalnum(*w = getch()) && *w != '_'){ // 不再是标识符
+                ungetch(*w);
+                break;
+            }
+    }
+    else if(c == '\'' || c == '\"'){ // 处理字符串常量
+        for(; --lim>0; w++)
+            if((*w = getch()) == '\\') /* 若出现\ 往后多读一个\，为了防止 \' 和 \" 的错误 */
+                *++w = getch();
+            else if(*w == c){ // 遇到匹配的 ' 或 "
+                w++;
+                break;
+            }
+            else if(*w == EOF)
+                break;
+    }
+    else if(c == '\\')
+        if((d = getch()) == '*')
+            c = comment(); // c中存放注释后紧跟的字符
+        else
+            ungetch(d);
+    *w = '\0';
+    return c;
+}
+
+int comment(void){
+    int c;
+    while((c = getch()) != EOF)
+        if(c == '*') // 一定是*后面紧跟/，即出现 */ 才算注释结束
+            if((c = getch()) == '\\')
+                break;
+            else
+                ungetch(c);
+    return c;
+}
+
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
 ~~~
 
+![1536994475811](Ch6结构.assets/1536994475811.png)
+
+输出结果：
+
+![1536994592168](Ch6结构.assets/1536994592168.png)
+
+
+
+#### 6-3 *编写一个交叉引用程序，打印文档中所有单词的列表，并且每个单词还有一个列表，记录出现过的该单词的行号。对the、and等非实义单词不予考虑。
+
+~~~c
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define MAXWORD 100
+
+struct linklist{ // 链表存行号
+    int lnum; // 行号
+    struct linklist *ptr; // 连接的下一项
+};
+
+struct tnode{
+    char *word;
+    struct linklist *lines;
+    struct tnode *left;
+    struct tnode *right;
+};
+
+struct tnode *addtreex(struct tnode *, char *, int);
+void treeprint(struct tnode *);
+int getword(char *, int);
+int noiseword(char *);
+
+// 编写一个交叉引用程序，打印文档中所有单词的列表，
+// 并且每个单词还有一个列表，记录出现过的该单词的行号。
+// 对the、and等非实义单词不予考虑。
+main(){
+    struct tnode *root;
+    char word[MAXWORD];
+    int linenum = 1; // 行号
+
+    root = NULL;
+    while(getword(word, MAXWORD) != EOF){
+        if(isalpha(word[0]) && noiseword(word) == -1) // 如果标识符不是非实义单词，增加新节点
+            root = addtreex(root, word, linenum);
+        else if(word[0] == '\n')
+            linenum++;
+    }
+    treeprint(root);
+    return 0;
+}
+
+struct tnode *talloc(void);
+char *strdup_(char *s);
+struct linklist *lalloc(void);
+void addIn(struct tnode *, int);
+
+struct tnode *addtreex(struct tnode *p, char *w, int linenum){
+    int cond;
+
+    if(p == NULL){
+        p = talloc();
+        p->word = strdup_(w);
+
+        p->lines = lalloc();
+        p->lines->lnum = linenum;
+        p->lines->ptr = NULL;
+
+        p->left = p->right = NULL;
+    }
+    else if((cond = strcmp(w, p->word)) == 0) // 新输入的单词，对存行号的链表进行处理
+        addIn(p, linenum);
+    else if(cond > 0)
+        p->right = addtreex(p->right, w, linenum);
+    else
+        p->left = addtreex(p->left, w, linenum);
+    return p;
+}
+
+void addIn(struct tnode *p, int linenum){
+    struct linklist *temp;
+
+    temp = p->lines; // 该节点中存的链表
+    while(temp->ptr != NULL && temp->lnum != linenum) // 出现未出现过的行号，找到链表中最后一位
+        temp = temp->ptr;
+    if(temp->lnum != linenum){
+        temp->ptr = lalloc(); // 往后创建一个新的链表节点
+        temp->ptr->ptr = NULL; // 链表指向的下一个节点为空
+        temp->ptr->lnum = linenum; // 链表中的内容为当前传入的行号
+    }
+}
+
+// 按顺序打印树p
+void treeprint(struct tnode *p){
+    struct linklist *temp;
+    if(p != NULL){
+        treeprint(p->left);
+        printf("%10s: ",p->word);
+        for(temp=p->lines; temp!=NULL; temp=temp->ptr)
+            printf("%4d ", temp->lnum);
+        printf("\n");
+        treeprint(p->right);
+    }
+}
+
+// 创建一个tnode
+struct tnode *talloc(void){
+    return (struct tnode *) malloc(sizeof(struct tnode));
+}
+
+// 把通过其参数传入的字符串复制到某个安全的位置
+char *strdup_(char *s){
+    char *p;
+    p = (char *)malloc(strlen(s) + 1);
+    if(p != NULL)
+        strcpy(p, s);
+    return p;
+}
+
+// 创建一个链表节点
+struct linklist *lalloc(void){
+    return (struct linklist *)malloc(sizeof(struct linklist));
+}
+
+//
+int noiseword(char *w){
+    static char *nw[] = {
+        "a",
+        "an",
+        "are",
+        "in",
+        "is",
+        "of",
+        "or",
+        "that",
+        "the",
+        "this",
+        "to"
+    };
+    int cond, mid;
+    int low = 0;
+    int high = sizeof(nw) / sizeof(char *) - 1; // 指向nw的最后一位
+
+    while(low <= high){ // 折半查找单词
+        mid = (low + high) / 2;
+        if((cond = strcmp(w, nw[mid])) < 0)
+            high = mid - 1;
+        else if(cond > 0)
+            low = mid + 1;
+        else
+            return mid;
+    }
+    return -1; // 单词不在这些无实义的单词中
+}
+
+void ungetch(int);
+int getch(void);
+
+// 从输入中读取下一个单词或字符
+int getword(char *word, int lim){
+    int c, d, comment(void);
+
+    char *w = word;
+
+    while(isspace(c = getch()) && c != '\n'); // 为了记录行号需要能读'\n'
+
+    if(c != EOF)
+        *w++ = c;
+
+    // 处理下划线和与编译器控制指令
+    if(isalpha(c) || c=='_' || c=='#'){ // 第一个字符是字母数字下划线或#
+        for(; --lim>0; w++)
+            if(!isalnum(*w = getch()) && *w != '_'){ // 不再是标识符
+                ungetch(*w);
+                break;
+            }
+    }
+    else if(c == '\'' || c == '\"'){ // 处理字符串常量
+        for(; --lim>0; w++)
+            if((*w = getch()) == '\\') /* 若出现\ 往后多读一个\，为了防止 \' 和 \" 的错误 */
+                *++w = getch();
+            else if(*w == c){ // 遇到匹配的 ' 或 "
+                w++;
+                break;
+            }
+            else if(*w == EOF)
+                break;
+    }
+    else if(c == '\\')
+        if((d = getch()) == '*')
+            c = comment(); // c中存放注释后紧跟的字符
+        else
+            ungetch(d);
+    *w = '\0';
+    return c;
+}
+
+int comment(void){
+    int c;
+    while((c = getch()) != EOF)
+        if(c == '*') // 一定是*后面紧跟/，即出现 */ 才算注释结束
+            if((c = getch()) == '\\')
+                break;
+            else
+                ungetch(c);
+    return c;
+}
+
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
 ~~~
 
-#### 6-3 编写一个交叉引用程序，打印文档中所有单词的列表，并且每个单词还有一个列表，记录出现过的该单词的行号。对the、and等非实义单词不予考虑。
+![1536998569221](Ch6结构.assets/1536998569221.png)
 
-#### 6-4 根据单词的出现频率按降序打印输入的各个不同单词，并在每个单词的前面标上它的出现次数
+#### 6-4 *根据单词的出现频率按降序打印输入的各个不同单词，并在每个单词的前面标上它的出现次数（希尔排序还很懵懂）
+
+~~~c
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define MAXWORD 100
+#define NDISTINCT 1000 // 对不同单词的最大数目限制
+
+struct tnode{
+    char *word;
+    int count;
+    struct tnode *left;
+    struct tnode *right;
+};
+
+struct tnode *addtree(struct tnode *, char *);
+int getword(char *, int);
+void sortlist(void);
+void treestore(struct tnode *);
+
+struct tnode *list[NDISTINCT]; // 指针数组，其中的每个指针都指向一个tnode类型的结构
+int ntn = 0; // 保存树节点的个数
+
+// 根据单词的出现频率按降序打印输入的各个不同单词，并在每个单词的前面标上它的出现次数
+main(){
+    struct tnode *root;
+    char word[MAXWORD];
+    int i;
+
+    root = NULL;
+    while(getword(word, MAXWORD) != EOF){
+        if(isalpha(word[0]))
+            root = addtree(root, word);
+    }
+    treestore(root); // 将list中的指针指向树的节点
+    sortlist(); // 排序
+    for(i=0; i<ntn; i++)
+        printf("%2d: %20s\n", list[i]->count, list[i]->word);
+    return 0;
+}
+
+void treestore(struct tnode *p){
+    if(p != NULL){
+        treestore(p->left);
+        if(ntn < NDISTINCT)
+            list[ntn++] = p;
+        treestore(p->right);
+    }
+}
+
+void sortlist(){ // 希尔排序
+    int gap, i, j;
+    struct tnode *temp;
+    for(gap=ntn/2; gap>0; gap/=2){
+        for(i=gap; i<ntn; i++){
+            for(j=i-gap; j>=0; j-=gap){
+                if((list[j]->count) >= (list[j+gap]->count))
+                    break;
+                temp = list[j];
+                list[j] = list[j+gap];
+                list[j+gap] = temp;
+            }
+        }
+    }
+}
+
+char *strdup_(char *s);
+struct tnode *talloc(void);
+// addtree在p的位置或p的下方增加一个节点
+struct tnode *addtree(struct tnode *p, char *w){
+    int cond;
+
+    if(p == NULL){ // 该单词是一个新单词
+        p = talloc(); // 创建一个新节点
+        p->word = strdup(w);
+        p->count = 1;
+        p->left = p->right = NULL;
+    }
+    else if((cond = strcmp(w, p->word)) == 0) // 新单词与节点中的单词匹配
+        p->count++;
+    else if(cond < 0)
+        p->left = addtree(p->left, w); // 新单词小于节点单词，进入左子树
+    else
+        p->right = addtree(p->right, w); // 新单词大于节点单词，进入右子树
+    return p;
+}
+
+// 创建一个tnode
+struct tnode *talloc(void){
+    return (struct tnode *) malloc(sizeof(struct tnode));
+}
+
+// 把通过其参数传入的字符串复制到某个安全的位置
+char *strdup_(char *s){
+    char *p;
+    p = (char *)malloc(strlen(s) + 1);
+    if(p != NULL)
+        strcpy(p, s);
+    return p;
+}
+
+void ungetch(int);
+int getch(void);
+
+// 从输入中读取下一个单词或字符
+int getword(char *word, int lim){
+    int c, d, comment(void);
+
+    char *w = word;
+
+    while(isspace(c = getch()));
+
+    if(c != EOF)
+        *w++ = c;
+
+    // 处理下划线和与编译器控制指令
+    if(isalpha(c) || c=='_' || c=='#'){ // 第一个字符是字母数字下划线或#
+        for(; --lim>0; w++)
+            if(!isalnum(*w = getch()) && *w != '_'){ // 不再是标识符
+                ungetch(*w);
+                break;
+            }
+    }
+    else if(c == '\'' || c == '\"'){ // 处理字符串常量
+        for(; --lim>0; w++)
+            if((*w = getch()) == '\\') /* 若出现\ 往后多读一个\，为了防止 \' 和 \" 的错误 */
+                *++w = getch();
+            else if(*w == c){ // 遇到匹配的 ' 或 "
+                w++;
+                break;
+            }
+            else if(*w == EOF)
+                break;
+    }
+    else if(c == '\\')
+        if((d = getch()) == '*')
+            c = comment(); // c中存放注释后紧跟的字符
+        else
+            ungetch(d);
+    *w = '\0';
+    return c;
+}
+
+int comment(void){
+    int c;
+    while((c = getch()) != EOF)
+        if(c == '*') // 一定是*后面紧跟/，即出现 */ 才算注释结束
+            if((c = getch()) == '\\')
+                break;
+            else
+                ungetch(c);
+    return c;
+}
+
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+~~~
 
 #### 6-5 编写函数undef，它将从由lookup和install维护的表中删除一个变量名及其定义
 
