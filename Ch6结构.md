@@ -1101,9 +1101,504 @@ void ungetch(int c){
 }
 ~~~
 
+### 6.6表查找
+
+散列查找的方式，将输入的名字转换为一个小的非负整数，该整数随后作为一个指针数组的下标
+
+数组的每个元素指向某个链表的表头 （*所以可能不同名字得到相同hash值放在同一列表中*）
+
+链表中的各个块用于描述具有该散列值的名字
+
+链表中块的结构：
+
+~~~c
+struct nlist{ // 链表项
+    struct nlist *next; // 链表中的下一表项
+    char *name; // 定义的名字
+    char *defn; // 替换文本
+}
+~~~
+
+相应指针数组定义：
+
+~~~c
+#define HASHSIZE 101
+static struct nlist *hashtab[HASHSIZE]; // 指针表
+~~~
+
+散列函数 为字符串s生成散列值，散列过程生成在数组hashtab中执行查找的起始下标
+
+~~~c
+unsigned hash(char *s){ // 无符号保证非负
+    unsigned hashval;
+    
+    for(hashval=0; *s!='\0'; s++)
+        hashval = *s + 31 * hashval;
+    return hashval % HASHSIZE;
+}
+~~~
+
+lookup: 在hashtab中查找s，发现表项已存在返回指向该表项的指针否则返回NULL
+
+~~~c
+struct nlist *lookup(char *s){
+    struct nlist *p;
+    
+    for(np=hashtab[hash(s)]; np!=NULL; np=np->next) // 遍历链表
+        if(strcmp(s, np->name) == 0)
+            return np;
+    return NULL;
+} 
+~~~
+
+其中
+
+~~~c
+for(np=head]; np!=NULL; np=np->next) // 遍历链表的标准方法
+~~~
+
+install：借助lookup判断待加入的名字是否存在，若存在用新的定义取而代之，否则创建一个新的表项
+
+~~~c
+// 将(name, defn)加入到hashtab中
+struct nlist *install(char *name, char *defn){
+    struct nlist *np;
+    unsigned hashval;
+    
+    if((np = lookup(name)) == NULL){ // 未找到
+        np = (struct nlist *)malloc(sizeof(*np));
+        if(np == NULL || (np->name = strdup(name)) == NULL)
+            return NULL;
+        hashval = hash(name);
+        np->next = hashtab[hashval];
+        hashtab[hashval] = np;
+    }
+    else // 已存在
+        free((void*) np->defn); // 释放前一个defn
+    if(np->defn = strdup(defn) == NULL) // 新定义取而代之，如果为空返回空
+        return NULL;
+    return np;
+}
+~~~
+
 #### 6-5 编写函数undef，它将从由lookup和install维护的表中删除一个变量名及其定义
 
-#### 6-6 以本节介绍的函数为基础，编写一个适合C语言程序使用的#define处理器的简单版本（即无参数的情况）。你会发现getch和ungetch函数非常有用。
+~~~c
+void undef(char *s){
+    int h;
+    struct nlist *prev, *np;
+    
+    prev = NULL;
+    h = hash(s);
+    for(np=hashtab(h); np!=NULL; np=np->next){ // 在表中查找字符串s
+        if(strcmp(s, np->name) == 0)
+            break;
+        prev = np; // prev指向np出现前的那个数据项
+    } // 如果表中没有s，则最后np指向NULL跳出
+    if(np != NULL){
+        if(prev == NULL) // np是以hashtab[h]开头的那个链表的第一个元素
+            hashab[h] = np->next;
+        else
+            prev->next = np->next;
+        free((void *)np->name);
+        free((void *)np->defn);
+        free((void *)np);
+    }
+}
+~~~
+
+#### 6-6 *以本节介绍的函数为基础，编写一个适合C语言程序使用的#define处理器的简单版本（即无参数的情况）。你会发现getch和ungetch函数非常有用。
+
+~~~c
+// 以本节介绍的函数为基础，
+//编写一个适合C语言程序使用的#define处理器的简单版本（即无参数的情况）。
+//你会发现getch和ungetch函数非常有用。
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+#define MAXWORD 100
+
+struct nlist{
+    struct nlist *next;
+    char *name;
+    char *defn;
+};
+
+void error(int, char *);
+int getch(void);
+void getdef(void);
+int getword(char *, int);
+struct nlist *install(char *, char *);
+struct nlist *lookup(char *);
+void skipblanks(void);
+void undef(char *);
+void ungetch(int);
+void ungets(char *);
+
+#define HASHSIZE 101
+static struct nlist *hashtab[HASHSIZE]; // 指针表
+
+unsigned hash(char *s){ // 无符号保证非负
+    unsigned hashval;
+
+    for(hashval=0; *s!='\0'; s++)
+        hashval = *s + 31 * hashval;
+    return hashval % HASHSIZE;
+}
+
+main(){
+    char w[MAXWORD];
+    struct nlist *p;
+
+    while(getword(w, MAXWORD) != EOF){
+        if(strcmp(w, "#") == 0)
+            getdef();
+        else if(!isalpha(w[0])) // 非可定义的标识符
+            printf("%s", w);
+        else if((p = lookup(w)) == NULL) // 未定义
+            printf("%s", w);
+        else                  // 该单词确实有一个配对的定义
+            ungets(p->defn);  // 把他们重新压回输入流
+    }
+    return 0;
+}
+
+struct nlist *lookup(char *s){
+    struct nlist *np;
+
+    for(np=hashtab[hash(s)]; np!=NULL; np=np->next) // 遍历链表
+        if(strcmp(s, np->name) == 0)
+            return np;
+    return NULL;
+}
+
+// 将(name, defn)加入到hashtab中
+struct nlist *install(char *name, char *defn){
+    struct nlist *np;
+    unsigned hashval;
+
+    if((np = lookup(name)) == NULL){ // 未找到
+        np = (struct nlist *)malloc(sizeof(*np));
+        if(np == NULL || (np->name = strdup(name)) == NULL)
+            return NULL;
+        hashval = hash(name);
+        np->next = hashtab[hashval];
+        hashtab[hashval] = np;
+    }
+    else // 已存在
+        free((void*) np->defn); // 释放前一个defn
+    if(np->defn = strdup(defn) == NULL) // 新定义取而代之，如果为空返回空
+        return NULL;
+    return np;
+}
+
+void undef(char *s){
+    int h;
+    struct nlist *prev, *np;
+
+    prev = NULL;
+    h = hash(s);
+    for(np=hashtab[h]; np!=NULL; np=np->next){ // 在表中查找字符串s
+        if(strcmp(s, np->name) == 0)
+            break;
+        prev = np; // prev指向np出现前的那个数据项
+    } // 如果表中没有s，则最后np指向NULL跳出
+    if(np != NULL){
+        if(prev == NULL) // np是以hashtab[h]开头的那个链表的第一个元素
+            hashtab[h] = np->next;
+        else
+            prev->next = np->next;
+        free((void *)np->name);
+        free((void *)np->defn);
+        free((void *)np);
+    }
+}
+
+void getdef(){
+    int c, i;
+    char dir[MAXWORD]; // 存放define或undef指令 或出错指令
+    char name[MAXWORD]; // 存放变量名
+    char def[MAXWORD]; // 存放变量名定义
+
+    skipblanks();
+    if(!isalpha(getword(dir, MAXWORD)))
+        error(dir[0], "getdef: expecting a directive after #");
+    else if(strcmp(dir, "define") == 0){
+        skipblanks();
+        if(!isalpha(getword(name, MAXWORD)))
+            error(name[0], "getdef: non-alpha - name expected");
+        else{
+            skipblanks();
+            for(i=0; i<MAXWORD-1; i++)
+                if((def[i] = getch()) == EOF || def[i] == '\n')
+                   break;
+            def[i] = '\0';
+            if(i <= 0)
+                error('\n', "getdef; incomplete define");
+            else
+                install(name, def);
+        }
+    }
+    else if(strcmp(dir, "undef") == 0){
+        skipblanks();
+        if(!isalpha(getword(name, MAXWORD)))
+            error(name[0], "getdef: non-alpha in undef");
+        else
+            undef(name);
+    }
+    else
+        error(dir[0], "getdef: expecting a directive after #");
+}
+
+void error(int c, char *s){
+    printf("error: %s\n", s);
+    while(c != EOF && c != '\n')
+        c = getch();
+}
+
+void skipblanks(void){
+    int c;
+
+    while((c = getch()) == ' ' || c == '\t');
+    ungetch(c);
+}
+
+// 从输入中读取下一个单词或字符
+int getword(char *word, int lim){
+    int c, d, comment(void);
+
+    char *w = word;
+
+    while(isspace(c = getch()) && c!=' ');
+
+    if(c != EOF)
+        *w++ = c;
+
+    // 处理下划线和与编译器控制指令
+    if(isalpha(c) || c=='_' || c=='#'){ // 第一个字符是字母数字下划线或#
+        for(; --lim>0; w++)
+            if(!isalnum(*w = getch()) && *w != '_'){ // 不再是标识符
+                ungetch(*w);
+                break;
+            }
+    }
+    else if(c == '\'' || c == '\"'){ // 处理字符串常量
+        for(; --lim>0; w++)
+            if((*w = getch()) == '\\') /* 若出现\ 往后多读一个\，为了防止 \' 和 \" 的错误 */
+                *++w = getch();
+            else if(*w == c){ // 遇到匹配的 ' 或 "
+                w++;
+                break;
+            }
+            else if(*w == EOF)
+                break;
+    }
+    else if(c == '\\')
+        if((d = getch()) == '*')
+            c = comment(); // c中存放注释后紧跟的字符
+        else
+            ungetch(d);
+    *w = '\0';
+    return c;
+}
+
+int comment(void){
+    int c;
+    while((c = getch()) != EOF)
+        if(c == '*') // 一定是*后面紧跟/，即出现 */ 才算注释结束
+            if((c = getch()) == '\\')
+                break;
+            else
+                ungetch(c);
+    return c;
+}
+
+# define BUFSIZE 100
+
+char buf[BUFSIZE]; // 用于ungetch()函数的缓冲区
+int bufp = 0; // buf中下一个空闲位置
+
+// 取一个字符（可能是压回的字符）
+int getch(void){
+    return (bufp > 0) ? buf[--bufp] : getchar();
+}
+
+// 把字符压回输入中
+void ungetch(int c){
+    if(bufp >= BUFSIZE)
+        printf("ungetch: too many characters\n");
+    else
+        buf[bufp++] = c;
+}
+
+void ungets(char s[]){
+    int len, i;
+    len = strlen(s);
+    while(len>0)
+        ungetch(s[--len]);
+}
+~~~
+
+其中函数getdef能够处理下面两种指令
+
+~~~c
+#define name definition
+#undef name
+~~~
+
+name是由字母或数字构成的变量名
+
+definition是这个变量名的定义
+
+### 6.7 类型定义（typedef）
+
+**以大写字母作为typedef定义的类型名的首字母以示区别**
+
+~~~c
+typedef int Length;
+~~~
+
+将Length定义为与int具有同等意义的名字，可用来类型声明、类型转换等，如
+
+~~~c
+Length len, maxlen;
+Length *lengths[];
+~~~
 
 
+
+~~~c
+typedef char *String; // 将String定义为与char*或字符指针同义
+
+String p, lineptr[MAXLINES], alloc(int);
+int strcmp(String, String);
+p = (Sting)malloc(100);
+~~~
+
+
+
+~~~c
+typedef struct tnode *Treeptr;
+
+typedef struct tnode{
+    char *word;
+    int count;
+    Treeptr left;
+    Treeptr right;
+} Treenode;
+~~~
+
+上述类型定义创建了两个新类型关键字：Treenode（一个结构） 和 Treeptr（一个指向该结构的指针）
+
+这样函数talloc可修改为
+
+~~~c
+Treeptr talloc(void){
+    return (Treeptr)malloc(sizeof(Treenode));
+}
+~~~
+
+
+
+typedef类似于#define语句，但由于typedef由**编译器**解释，所以文本替换能力超过预处理器的能力
+
+~~~c
+typedef int (*PFI)(char *, char *);
+~~~
+
+PFI是一个指向函数的指针，该函数具有两个char *类型的参数，返回类型为int
+
+第5章排序程序可写为 
+
+~~~c
+PFI strcmp, numcmp;
+~~~
+
+### 6.8 联合
+
+目的：一个变量可以合法地保存多种数据类型中的任何一种类型的对象
+
+~~~c
+union u_tag{
+    int ival;
+    float fval;
+    char *sval;
+} u;
+~~~
+
+这些类型中的任何一种类型的对象都可以赋给u
+
+用变量utype跟踪保存在u中的当前数据类型
+
+~~~c
+if(utype == INT)
+	printf("%d\n", u.ival);
+else if(utype == FLOAT)
+	printf("%d\n", u.fval);
+else if(utype == STRING)
+	printf("%d\n", u.sval);
+else
+	printf("bad type %d in utype\n", utype);
+~~~
+
+
+
+~~~c
+struct{
+    char *name;
+    int flag;
+    int utype;
+    union{
+        int ival;
+    	float fval;
+    	char *sval; 
+    } u;
+} symtab[NSYM];
+
+// 引用其成员ival
+symtab[i].u.ival;
+// 引用字符串sval的第一个字符
+*symtab[i].u.sval;
+symtab[i].u.sval[0];
+~~~
+
+联合只能用其**第一个成员类型的值**进行初始化
+
+
+
+### 6.9 位字段
+
+定义相关位置的屏蔽码，如
+
+~~~c
+#define KEYWORD 01
+#define EXTERNAL 02
+#define STATIC 04
+~~~
+
+或
+
+~~~c
+enum{ KEYWORD = 01, EXTERNAL = 02, STATIC = 04};
+~~~
+
+~~~c
+flags |= EXTERNAL | STATIC; // 将flags中的EXTERNAL和STATIC位置为1
+flags &= -(EXTERNAL | STATIC); // 将flags中的EXTERNAL和STATIC位置为0
+~~~
+
+
+
+上诉符号表的多个#define语句可由下列3个**字段的定义**替代
+
+~~~c
+struct{
+    unsigned int is_keyword : 1;
+    unsigned int is_extern : 1;
+    unsigned int is_static : 1;
+} flags;
+
+flag.is_extern = flag.is_static = 1; // 将is_extern和is_static位置为1
+~~~
 
