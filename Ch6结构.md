@@ -1602,3 +1602,32 @@ struct{
 flag.is_extern = flag.is_static = 1; // 将is_extern和is_static位置为1
 ~~~
 
+### &&C语言中"."和"->"的区别
+
+**“.”只需要声明一个结构体，格式是结构体类型名+结构体名。然后用结构体名”.”域名就可以引用域了** 
+
+```c
+struct date {
+    int month;
+    int day;
+    int year;
+}today;
+today.month = 11;
+today.day = 11;
+today.year = 1111;
+```
+
+**“->”需要声明一个结构体，格式是结构体类型名+结构体名，并且声明一个指针指向该结构体**
+
+```c
+struct date {
+    int month;
+    int day;
+    int year;
+} myday;
+struct date p = &myday;
+(*p).month = 11;
+p->month = 11;              //这两个表达式意思相同
+
+```
+
