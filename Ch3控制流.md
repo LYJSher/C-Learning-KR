@@ -474,7 +474,7 @@ void itob(int n, char s[], int b){
     n = abs(n);
     do{
         j = n % b;
-        s[i++] = (j <= 9) ? j + '0' : j + 'a' - 10; // 注意
+        s[i++] = (j <= 9) ? j + '0' : j + 'a' - 10; // 注意 
     }while((n /= b) > 0);
 
     if(sign < 0)
@@ -492,6 +492,15 @@ main(){
     return 0;
 }
 ~~~
+
+*注意*
+
+````c
+s[i++] = (j <= 9) ? j + '0' : j + 'a' - 10;
+````
+
+1. 对十六进制超过10的进行字母处理
+2. 将小于10的由int型转换为char型
 
 ### 3.7break语句与continue语句
 
